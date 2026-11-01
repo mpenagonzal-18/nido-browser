@@ -143,7 +143,7 @@ export function renderSettings(
   );
   field(
     navigation,
-    'Cookies durante esta sesión',
+    'Cookies propias durante esta sesión',
     s.allowSessionCookies,
     (v) => (s.allowSessionCookies = v === 'true'),
     'checkbox',

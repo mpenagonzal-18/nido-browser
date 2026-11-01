@@ -2,7 +2,7 @@
   "name": "nido-browser",
   "version": "0.1.0",
   "private": true,
-  "description": "Navegador personal con sesiones ef\u00edmeras y asistentes aislados",
+  "description": "Navegador personal con sesiones efímeras y asistentes aislados",
   "author": "Nido contributors",
   "license": "MIT",
   "main": "dist/main/index.js",
@@ -18,19 +18,20 @@
   },
   "dependencies": {
     "@ghostery/adblocker-electron": "2.20.3",
+    "tldts-experimental": "^7.4.19",
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^24.0.0",
     "electron": "45.2.1",
     "electron-builder": "^26.0.0",
     "esbuild": "^0.27.0",
-    "typescript": "^5.9.0",
-    "vitest": "^4.0.0",
     "eslint": "^9.0.0",
-    "@eslint/js": "^9.0.0",
-    "typescript-eslint": "^8.0.0",
     "prettier": "^3.0.0",
-    "@types/node": "^24.0.0"
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
   },
   "build": {
     "appId": "io.nido.browser",

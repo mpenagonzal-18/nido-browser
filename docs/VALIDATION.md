@@ -12,8 +12,8 @@ npm run dist -- --linux --publish never
 ```
 
 El smoke test ejecuta el **build de producción** en Electron con sandbox. Arranca
-un servidor HTTP local en dos direcciones loopback (127.0.0.2 para pestañas y
-127.0.0.1 para el asistente simulado), usa un perfil temporal y reinicia Electron dos veces.
+un servidor HTTP local en tres direcciones loopback (127.0.0.2 para pestañas,
+127.0.0.1 para el asistente simulado y 127.0.0.3 para el tracker), usa un perfil temporal y reinicia Electron dos veces.
 EasyList excluye cosmética en localhost y 127.0.0.1; la fixture usa 127.0.0.2 para
 comprobar una regla real sin modificar filtros ni ignorar sus excepciones.
 
@@ -66,7 +66,7 @@ preparados; solo una ejecución en GitHub establece su resultado remoto.
 
 - `npm ci`, instalación oficial de Electron y build: completados.
 - ESLint y TypeScript estricto: correctos.
-- Vitest: 47 pruebas en 6 archivos, todas correctas.
+- Vitest: 57 pruebas en 6 archivos, todas correctas.
 - Integración Electron: tres arranques con perfil temporal, correcta.
 - electron-builder Linux x64: AppImage y DEB generados; no firmados.
 - Aplicación Linux empaquetada en asar: arranque real y estado de UI verificados.
@@ -74,3 +74,19 @@ preparados; solo una ejecución en GitHub establece su resultado remoto.
 
 Los tiempos observados de UI lista en perfiles de prueba fueron aproximadamente
 0,8–1,1 segundos. Son medidas de esta máquina, no benchmarks multiplataforma.
+
+La defensa de almacenamiento se verifica con intentos de escritura por cabecera,
+`document.cookie`, Cookie Store, Local/Session Storage, IndexedDB, Cache API y
+registro de service workers. Un mundo aislado exclusivo del test runner consulta
+los almacenes nativos de Chromium: así un getter bloqueado no puede simular que los
+datos están vacíos. El runner siembra datos nativos, espera la barrida de 15 segundos
+y comprueba su eliminación. Repite la comprobación tras cerrar una pestaña y volver
+al origen. Con cookies propias activadas mantiene otra pestaña legítima del tracker,
+lo solicita por fetch e iframe y comprueba ausencia de cookies salientes y nuevas
+cookies de terceros. La sidebar conserva solo cookies de proveedores, incluso tras
+una inyección nativa de una cookie de tracker. El primer proceso usa el cierre real
+y comprueba la sesión vacía en `will-quit`, después de la limpieza de producción.
+
+Se simula también un perfil antiguo con una cookie de tracker persistente después
+de cerrar las ventanas de producción. El siguiente arranque debe purgarla antes
+de mostrar vistas, manteniendo la cookie de sesión válida del proveedor.

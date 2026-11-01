@@ -1,7 +1,15 @@
-import { app, dialog, type Session, type WebContents } from 'electron';
+import { app, dialog, type Session, type WebContents, webContents } from 'electron';
 import { isWebUrl } from '../shared/navigation';
 import path from 'node:path';
-import { requestHeaders, responseHeaders, providerAllows, upgradeHttp } from '../shared/privacy';
+import {
+  requestHeaders,
+  responseHeaders,
+  providerAllows,
+  upgradeHttp,
+  firstPartyRequest,
+  domainMatches,
+  hostname,
+} from '../shared/privacy';
 import type { Settings } from '../shared/settings';
 export const CHROME_UA = `Mozilla/5.0 (${process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : 'X11; Linux x86_64'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 export function chromiumPrivacy() {
@@ -62,51 +70,134 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
       .catch(() => callback(false));
   });
   ses.on('will-download', (event) => event.preventDefault());
+  // Clear APIs are asynchronous. Serialize overlapping periodic/origin/shutdown
+  // sweeps, and keep failures observable instead of treating them as success.
+  let clearing = Promise.resolve();
+  const enqueue = (operation: () => Promise<void>) => {
+    clearing = clearing.catch(() => {}).then(operation);
+    return clearing;
+  };
+  const clearOrigins = (origins: Iterable<string>) =>
+    enqueue(async () => {
+      for (const origin of new Set(origins))
+        if (isWebUrl(origin)) await ses.clearStorageData({ origin });
+      await ses.clearCache();
+    });
+  const sweep = () =>
+    enqueue(async () => {
+      await ses.clearStorageData(
+        getSettings().allowSessionCookies
+          ? {
+              storages: [
+                'filesystem',
+                'indexdb',
+                'localstorage',
+                'shadercache',
+                'serviceworkers',
+                'cachestorage',
+              ],
+            }
+          : undefined,
+      );
+      await ses.clearCache();
+    });
+  const clearAll = () =>
+    enqueue(async () => {
+      permissions.clear();
+      await ses.clearStorageData();
+      await ses.clearCache();
+      await ses.clearAuthCache();
+    });
+  const timer = !sidebar
+    ? setInterval(() => {
+        void sweep().catch((error) =>
+          console.error('No se pudo completar la limpieza periódica', error),
+        );
+      }, 15_000)
+    : undefined;
+  timer?.unref();
   let cookiePreload: string | undefined;
   const refreshCookies = () => {
     if (cookiePreload) ses.unregisterPreloadScript(cookiePreload);
-    cookiePreload =
-      !sidebar && !getSettings().allowSessionCookies
-        ? ses.registerPreloadScript({
-            type: 'frame',
-            filePath: path.join(__dirname, '../preload/cookies.js'),
-            matches: ['http://*/*', 'https://*/*'],
-            matchOriginAsFallback: true,
-          })
-        : undefined;
+    if (!sidebar)
+      cookiePreload = ses.registerPreloadScript({
+        type: 'frame',
+        filePath: path.join(
+          __dirname,
+          getSettings().allowSessionCookies
+            ? '../preload/session-cookies.js'
+            : '../preload/cookies.js',
+        ),
+        matches: ['http://*/*', 'https://*/*'],
+        matchOriginAsFallback: true,
+      });
   };
   refreshCookies();
-  ses.webRequest.onBeforeSendHeaders((details, callback) =>
-    callback({
-      requestHeaders: requestHeaders(
-        details.requestHeaders,
-        sidebar
-          ? providerAllows(details.url, getSettings().providers)
-          : getSettings().allowSessionCookies,
-      ),
-    }),
-  );
+  const destinations = new Map<number, string>();
+  const allowCookies = (
+    details:
+      Electron.OnBeforeSendHeadersListenerDetails | Electron.OnHeadersReceivedListenerDetails,
+  ) => {
+    if (sidebar) return providerAllows(details.url, getSettings().providers);
+    const contents = details.webContents ?? webContents.fromId(details.webContentsId ?? -1);
+    if (!contents || contents.isDestroyed()) return false;
+    if (details.resourceType === 'mainFrame' && contents && isWebUrl(details.url)) {
+      const id = contents.id;
+      if (!destinations.has(id)) contents.once('destroyed', () => destinations.delete(id));
+      destinations.set(id, details.url);
+    }
+    const topUrl = contents ? (destinations.get(contents.id) ?? contents.getURL()) : undefined;
+    return getSettings().allowSessionCookies && firstPartyRequest(details, topUrl);
+  };
+  ses.webRequest.onBeforeSendHeaders((details, callback) => {
+    // This Chromium-generated header identifies service-worker script loads, even
+    // when registration was attempted outside the document's guarded JS world.
+    if (
+      !sidebar &&
+      Object.keys(details.requestHeaders).some((name) => name.toLowerCase() === 'service-worker')
+    ) {
+      callback({ cancel: true });
+      return;
+    }
+    callback({ requestHeaders: requestHeaders(details.requestHeaders, allowCookies(details)) });
+  });
   ses.webRequest.onHeadersReceived((details, callback) =>
     callback({
-      responseHeaders: responseHeaders(
-        details.responseHeaders ?? {},
-        sidebar
-          ? providerAllows(details.url, getSettings().providers)
-          : getSettings().allowSessionCookies,
-      ),
+      responseHeaders: responseHeaders(details.responseHeaders ?? {}, allowCookies(details)),
     }),
   );
   ses.cookies.on('changed', (_, cookie, _cause, removed) => {
     if (removed) return;
     const host = (cookie.domain ?? '').replace(/^\./, '');
     const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookie.path}`;
-    if (
-      sidebar ? !providerAllows(url, getSettings().providers) : !getSettings().allowSessionCookies
-    )
-      void ses.cookies.remove(url, cookie.name);
+    const allowed = sidebar
+      ? providerAllows(url, getSettings().providers)
+      : getSettings().allowSessionCookies &&
+        webContents
+          .getAllWebContents()
+          .some(
+            (contents) =>
+              contents.session === ses &&
+              (isWebUrl(contents.getURL()) || isWebUrl(destinations.get(contents.id) ?? '')) &&
+              (domainMatches(hostname(contents.getURL()), host) ||
+                domainMatches(hostname(destinations.get(contents.id) ?? ''), host)),
+          );
+    if (!allowed)
+      void ses.cookies
+        .remove(url, cookie.name)
+        .catch((error) => console.error('No se pudo eliminar una cookie no autorizada', error));
   });
-  return Object.assign(refreshCookies, { clearPermissions: () => permissions.clear() });
+  return Object.assign(refreshCookies, {
+    clearPermissions: () => permissions.clear(),
+    clearOrigins,
+    clearAll,
+    sweep,
+    dispose: () => {
+      if (timer) clearInterval(timer);
+    },
+  });
 }
+
 export function secureContents(contents: WebContents) {
   contents.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
   contents.on('will-attach-webview', (event) => event.preventDefault());

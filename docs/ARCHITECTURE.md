@@ -10,7 +10,9 @@
 - `src/main/storage.ts`: JSON local con reemplazo atómico; historial opt-in.
 - `src/main/local-files.ts`: diálogos y URLs de capacidad para audio/fondo local.
 - `src/preload/index.ts`: solo API de comandos/eventos para la UI interna.
-- `src/preload/cookies.ts`: guardia de cookies sin API para contenido remoto.
+- `src/preload/document-policy.ts`: guardas de cookies y almacenamiento sin API
+  privilegiada para contenido remoto. `cookies.ts` y `session-cookies.ts` eligen
+  modo estricto o cookies propias; el resto del almacenamiento siempre se deniega.
 - `src/renderer`: DOM nativo, música estable fuera de vistas de páginas.
 - `src/renderer/newtab`: apariencia y fondo de la página interna.
 
@@ -27,3 +29,15 @@ explícita para no sobrescribir el listener que elimina Set-Cookie y para garant
 que las exclusiones de vídeo se comprueban antes de cualquier operación cosmética.
 El protocolo `nido:` solo se atiende en la sesión interna, con rutas exactas y
 archivos locales autorizados mediante tokens aleatorios. No acepta rutas del URL.
+
+Las vistas de navegación habilitan la ejecución de preloads aislados en subframes
+mediante `nodeIntegrationInSubFrames`, conservando explícitamente `sandbox: true`,
+`contextIsolation: true` y `nodeIntegration: false`. Este flag permite que Electron
+cargue las guardas antes de los scripts de cada iframe; no se expone Node al mundo
+de la página. La integración verifica `require`, `process` y la API interna ausentes
+en un iframe de otro origen. Al actualizar Electron hay que repetir esa prueba y
+revisar la interacción entre estas opciones en el renderer sandboxed.
+
+Las limpiezas periódicas, por origen y de cierre se serializan. El cierre se
+intercepta antes de destruir la ventana nativa, se cierran las vistas remotas y se
+espera a la limpieza; esto evita salir antes de resolver las operaciones asíncronas.

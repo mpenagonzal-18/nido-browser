@@ -61,8 +61,8 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **11,81 kB JS** (4,66 kB gzip), más unos
-**8,52 kB CSS**. El main propio ronda 42 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **11,83 kB JS** (4,67 kB gzip), más unos
+**8,52 kB CSS**. El main propio ocupa menos de 50 kB; Ghostery y Zod se conservan como módulos
 de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **0,9 s** en esta máquina Linux headless con perfil de
@@ -77,7 +77,10 @@ a un clic individual: son las propias webs las que cargan sus recursos.
 
 Las pestañas usan una sesión **en memoria**, sin caché en disco ni historial
 persistente por defecto. Se bloquean cookies de red y `document.cookie`; se pueden
-permitir solo durante la ejecución actual. Se envían DNT/GPC, se recorta Referer y
+permitir solo para el sitio propio durante la ejecución actual; los terceros
+siguen bloqueados. Las APIs de almacenamiento y los service workers se deniegan,
+con limpieza adicional cada 15 segundos, por origen al cerrar pestañas y completa
+antes de salir. Se envían DNT/GPC, se recorta Referer y
 se limita WebRTC. Los permisos parten de denegación y los admitidos requieren una
 confirmación por sitio. El historial opcional es un JSON exclusivamente local.
 No hay gestor de descargas web en esta versión.

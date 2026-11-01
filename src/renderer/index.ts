@@ -75,7 +75,7 @@ function render() {
   void applyAppearance(state.settings);
   updateMusic(state.settings);
   $('privacy-status').textContent =
-    `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies temporales' : 'Sin cookies'} · Sin telemetría`;
+    `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
   const signature = JSON.stringify(state.settings);
   if (settingsOpen && signature !== settingsSignature) drawSettings();
   settingsSignature = signature;

@@ -10,12 +10,51 @@ una auditoría completa de cada versión de Chromium ni a anonimato de red.
 ## Navegación
 
 Las pestañas comparten una sesión **en memoria** (`nido-browsing`, sin `persist:`)
-con caché de disco desactivada. localStorage e IndexedDB pueden funcionar durante
-la sesión, pero no se conservan tras terminar el proceso. Las cookies de petición
-y respuesta se eliminan y `document.cookie` se neutraliza en todos los frames
-mediante un preload de sesión. La API Cookie Store tampoco está disponible. El
-interruptor opcional permite cookies temporales; cambiarlo limpia el almacenamiento
-y recarga pestañas. No se guarda ninguna lista de pestañas ni historial por defecto.
+con caché de disco desactivada. Por defecto se eliminan `Cookie` y `Set-Cookie`, se
+neutralizan `document.cookie` y Cookie Store y se escucha `session.cookies.changed`:
+cualquier cookie que aparezca se elimina mediante la API nativa. Esta eliminación
+es asíncrona; no se promete que una cookie nunca exista durante un breve intervalo
+en memoria. El filtrado de cabeceras actúa antes de su envío/aceptación.
+
+El interruptor opcional permite **solo cookies propias temporales**. La política de
+red compara sitios con esquema y lista de sufijos públicos, incluidos sufijos
+privados como `github.io`; no confunde un subdominio con un dominio de otro usuario.
+Las peticiones/respuestas de terceros no envían ni aceptan cookies, aunque ese
+tercero tenga abierta otra pestaña propia. Los contextos sin origen o frame identificable
+se deniegan, y se comprueba también la cadena de ancestros del frame. Los iframes de otro origen no pueden usar `document.cookie` ni Cookie
+Store; también se deniegan cookies JS en iframes del mismo sitio pero distinto
+origen (una restricción más fuerte). El evento de cookies elimina dominios sin
+contexto propio abierto. No aporta por sí solo el contexto que originó una escritura;
+por eso no sustituye a los filtros de red ni a las guardas de los documentos.
+Cambiar el interruptor limpia la sesión y recarga las pestañas.
+
+`localStorage`, `sessionStorage`, IndexedDB y Cache API se deniegan en los documentos
+de las pestañas con `SecurityError`, incluso cuando se permiten cookies propias.
+Los preloads aislados se ejecutan también en subframes, con sandbox, aislamiento y
+Node desactivado en el contenido remoto. Se desactivan service workers en esas
+vistas, se retira su API de los documentos y se bloquean las peticiones nativas de
+sus scripts (`Service-Worker`) como segunda barrera.
+
+Cada **15 segundos** se ejecutan `session.clearStorageData()` y `clearCache()` en la
+sesión de pestañas. Si el usuario activó cookies propias, la barrida excluye solo
+las cookies: los demás almacenes siguen limpiándose. Los preloads conservan
+referencias nativas a Local/Session Storage únicamente en su mundo aislado para
+limpiarlas con el mismo intervalo; no dependen de los getters alterables de la web.
+Al cerrar una pestaña se destruye su vista y se limpian los orígenes visitados,
+incluidos subframes y navegaciones anteriores. Como las pestañas comparten sesión,
+esto puede cerrar la sesión de otra pestaña del mismo sitio; Chromium también
+puede agrupar el borrado de cookies por dominio. La caché de red se vacía completa.
+Antes del cierre normal del navegador se destruyen las vistas y se **espera** al
+borrado completo de almacenamiento, caché y autenticación de navegación. La sidebar
+queda fuera de todas estas barridas.
+
+La denegación de APIs y las barridas pueden romper aplicaciones que dependan de
+almacenamiento o funcionamiento sin conexión. Código de workers dedicados u otras
+superficies de Chromium puede alcanzar almacenamiento entre barridas: estas
+medidas son defensa en profundidad, no una prueba de imposibilidad de toda
+escritura. El cierre abrupto, un fallo o matar el proceso puede saltarse la limpieza
+de cierre; la partición de navegación sigue siendo en memoria. No se guarda una
+lista de pestañas ni historial por defecto.
 
 DNT y GPC se envían como señales (los sitios pueden ignorarlas). Referer se reduce
 al origen. Se usa un User-Agent estándar de Chrome, sin marca Electron/Nido.
@@ -64,6 +103,8 @@ Permite cookies para los hostnames configurados y sus subdominios (comprobación
 con límite de etiqueta; `claude.ai.evil.test` no está permitido). No extiende el
 permiso al dominio padre: `gemini.google.com` no autoriza `google.com`. Cookies
 a dominios ajenos se eliminan en peticiones/respuestas y tras cambios de cookie.
+Antes de abrir vistas se purgan también cookies ajenas que pudiera contener un
+perfil anterior, conservando las cookies de los proveedores actuales.
 Los frames de terceros no configurados se bloquean para impedir almacenamiento
 local e IndexedDB de esos frames. Los recursos de terceros pueden descargarse sin
 cookies. Cada vista puede conservar almacenamiento de su proveedor, como cookies,
@@ -101,8 +142,32 @@ sobre ella, no su endpoint JSON como si fuera una conversación.
 
 Nido no tiene tareas propias de red al arrancar. Una vez que navegas o abres un
 asistente, esas páginas pueden solicitar imágenes, scripts, APIs, WebSockets,
-service workers y recursos de terceros incluso en segundo plano. Los filtros y
+recursos de terceros incluso en segundo plano. La sidebar puede utilizar service
+workers de sus proveedores; las pestañas de navegación los desactivan. Los filtros y
 las políticas de cookies no son un cortafuegos que impida todas esas conexiones.
 La actualización manual de listas es la única descarga propia de la aplicación.
 Las instalaciones de npm y electron-builder también necesitan red durante el
 desarrollo y empaquetado, no durante el uso de la página de inicio.
+
+## Lo que estas medidas NO garantizan
+
+- **Fingerprinting:** no se uniformizan ni bloquean completamente Canvas, WebGL,
+  AudioContext, fuentes del sistema, resolución, tiempos ni todas las propiedades
+  del equipo. Un User-Agent genérico no impide reconocer un dispositivo.
+- **Seguimiento por IP:** servidores, proveedores de red y recursos de terceros
+  pueden correlacionar conexiones por IP, tiempos o cuentas. Nido no es una VPN,
+  no cambia la dirección pública y WebRTC limitado no equivale a anonimato.
+- **ETag y otros identificadores:** vaciar la caché reduce su persistencia, pero no
+  demuestra ausencia de seguimiento mediante ETag, Last-Modified, URLs, cabeceras,
+  TLS, respuestas del servidor o identificadores mantenidos en memoria. No se
+  eliminan sistemáticamente todas las cabeceras condicionales. Los servidores
+  conservan sus registros aunque se borren los datos locales.
+- **Identidad voluntaria:** iniciar sesión, permitir cookies propias, escribir un
+  identificador o enviar contenido a una web permite que ese servicio te reconozca.
+  DNT y GPC son señales que los sitios pueden ignorar.
+- **Borrado forense y fallos:** no se controla swap, copias de seguridad, volcados,
+  malware ni registros externos. Las operaciones de borrado pueden fallar o competir
+  con actividad nueva; sus errores se registran y no se presentan como éxito.
+
+Las pruebas locales cubren rutas concretas y la versión de Electron fijada, no
+constituyen una auditoría independiente ni garantizan todas las versiones futuras.

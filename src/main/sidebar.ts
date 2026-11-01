@@ -41,6 +41,15 @@ export class Sidebar {
     }
     if (!previous || previous.some((host) => !domains.includes(host)))
       await this.session.clearStorageData();
+    // Recover safely from an older/abruptly stopped instance that left cookies
+    // on disk before its asynchronous changed-handler could remove them.
+    for (const cookie of await this.session.cookies.get({})) {
+      const host = (cookie.domain ?? '').replace(/^\./, '');
+      const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookie.path}`;
+      if (!providerAllows(url, this.settings().providers))
+        await this.session.cookies.remove(url, cookie.name);
+    }
+    await this.session.cookies.flushStore();
     await this.saveDomains();
   }
   private initialize() {

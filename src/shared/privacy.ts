@@ -1,3 +1,4 @@
+import { getDomain } from 'tldts-experimental';
 import { isWebUrl } from './navigation';
 export function hostname(url: string): string {
   try {
@@ -58,5 +59,44 @@ export function upgradeHttp(url: string): string | undefined {
     return parsed.href;
   } catch {
     return;
+  }
+}
+
+/** Schemeful same-site comparison, including private suffixes such as github.io. */
+export function sameSite(first: string, second: string): boolean {
+  if (!isWebUrl(first) || !isWebUrl(second)) return false;
+  const a = new URL(first);
+  const b = new URL(second);
+  const site = (url: URL) => getDomain(url.hostname, { allowPrivateDomains: true }) ?? url.hostname;
+  return a.protocol === b.protocol && site(a) === site(b);
+}
+export interface CookieRequestFrame {
+  url: string;
+  origin?: string;
+  parent?: CookieRequestFrame | null;
+}
+export function firstPartyRequest(
+  request: {
+    url: string;
+    resourceType: string;
+    initiatorOrigin?: string;
+    frame?: CookieRequestFrame | null;
+  },
+  topUrl?: string,
+): boolean {
+  if (!isWebUrl(request.url)) return false;
+  if (request.resourceType === 'mainFrame') return true;
+  if (!topUrl || !sameSite(request.url, topUrl) || !request.frame) return false;
+  try {
+    let frame: CookieRequestFrame | null | undefined = request.frame;
+    while (frame) {
+      if (!sameSite(frame.origin ?? frame.url, topUrl)) return false;
+      frame = frame.parent;
+    }
+    const initiator = request.initiatorOrigin ?? request.frame.url;
+    return !!initiator && sameSite(initiator, topUrl);
+  } catch {
+    // A frame can detach between Chromium queuing and delivering a request.
+    return false;
   }
 }

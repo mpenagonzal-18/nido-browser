@@ -7,6 +7,9 @@ El código propio de Nido se distribuye bajo MIT (`LICENSE`).
 - @ghostery/adblocker-electron y el motor de filtros: MPL-2.0. Se utilizan como
   módulos sin modificar; sus archivos LICENSE se distribuyen con las dependencias.
   Fuente: https://github.com/ghostery/adblocker
+- tldts-experimental: analizador de sufijos públicos, MIT. Se utiliza directamente
+  para distinguir sitios propios y terceros, incluidos dominios privados; sus
+  datos y avisos originales permanecen en el paquete. Fuente: https://github.com/remusao/tldts
 - Zod: MIT. Fuente: https://github.com/colinhacks/zod
 - EasyList/EasyPrivacy: datos de terceros con licencia separada y avisos en
   `assets/lists/NOTICE.md`; se conserva una copia de GPLv3 como opción de distribución.

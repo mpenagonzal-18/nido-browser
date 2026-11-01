@@ -34,7 +34,7 @@ app.setName(APP_NAME);
 chromiumPrivacy();
 let win: BrowserWindow;
 let settings = defaults();
-type Tab = { state: TabState; view?: WebContentsView; lastActive: number };
+type Tab = { state: TabState; view?: WebContentsView; lastActive: number; origins: Set<string> };
 const tabs: Tab[] = [];
 let stateQueued = false;
 function queueState() {
@@ -58,7 +58,9 @@ const blocking = new Blocking(
 let active = '';
 let sidebar: Sidebar;
 let overlay = false;
-let refreshCookies: () => void;
+let browsingPrivacy: ReturnType<typeof configurePrivacy>;
+let cleanupFinished = false;
+let shuttingDown = false;
 const safePreferences = {
   contextIsolation: true,
   nodeIntegration: false,
@@ -115,9 +117,19 @@ function createView(tab: Tab) {
   const view = new WebContentsView({
     webPreferences: {
       ...safePreferences,
+      // Electron's sandboxed renderer gates iframe PRELOAD execution with this
+      // flag. Sandbox + context isolation stay on; Node remains off in page JS.
+      // Regression tests assert that cross-origin frames have no require/process.
+      nodeIntegrationInSubFrames: true,
+      disableBlinkFeatures: 'ServiceWorker',
       session: session.fromPartition('nido-browsing', { cache: false }),
     },
   });
+  const rememberOrigin = (url: string) => {
+    if (isWebUrl(url)) tab.origins.add(new URL(url).origin);
+  };
+  rememberOrigin(tab.state.url);
+  view.webContents.on('did-start-navigation', (_event, url) => rememberOrigin(url));
   secureContents(view.webContents);
   tab.view = view;
   tab.state.suspended = false;
@@ -184,13 +196,14 @@ function openTab(url = 'nido://app/newtab') {
       canForward: false,
     },
     lastActive: Date.now(),
+    origins: new Set(),
   };
   tabs.push(tab);
   createView(tab);
   activate(tab.state.id);
   return tab.state.id;
 }
-function closeTab(id: string) {
+async function closeTab(id: string) {
   const index = tabs.findIndex((t) => t.state.id === id);
   if (index < 0) return;
   const [tab] = tabs.splice(index, 1);
@@ -201,6 +214,7 @@ function closeTab(id: string) {
   if (!tabs.length) openTab();
   else if (id === active) activate(tabs[Math.min(index, tabs.length - 1)].state.id);
   sendState();
+  await browsingPrivacy.clearOrigins(tab.origins);
 }
 function navigate(value: string) {
   const url = addressToUrl(value, settings.search, settings.searx);
@@ -239,7 +253,9 @@ function shortcut(input: Electron.Input): boolean {
       openTab();
       return true;
     case 'w':
-      closeTab(active);
+      void closeTab(active).catch((error) =>
+        console.error('No se pudieron limpiar los datos de la pestaña', error),
+      );
       return true;
     case 'l':
       win.webContents.send('nido:focus-address');
@@ -291,7 +307,8 @@ const Command = z.discriminatedUnion('action', [
 app.whenReady().then(async () => {
   settings = await readSettings();
   const browsing = session.fromPartition('nido-browsing', { cache: false });
-  refreshCookies = configurePrivacy(browsing, () => settings);
+  browsingPrivacy = configurePrivacy(browsing, () => settings);
+  await browsingPrivacy.clearAll();
   await blocking.load();
   blocking.attach(browsing);
   protocol.handle('nido', (request) => {
@@ -330,6 +347,12 @@ app.whenReady().then(async () => {
     shortcut,
   );
   await sidebar.prepare();
+  win.on('close', (event) => {
+    if (!cleanupFinished) {
+      event.preventDefault();
+      app.quit();
+    }
+  });
   win.on('resize', layout);
   secureContents(win.webContents);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -342,8 +365,8 @@ app.whenReady().then(async () => {
     settings = SettingsSchema.parse(next);
     await saveSettings(settings);
     if (previous.allowSessionCookies !== settings.allowSessionCookies) {
-      refreshCookies();
-      await browsing.clearStorageData();
+      browsingPrivacy();
+      await browsingPrivacy.clearAll();
       for (const entry of tabs) entry.view?.webContents.reload();
     }
     await sidebar.reconcile(previous);
@@ -430,7 +453,7 @@ app.whenReady().then(async () => {
         activate(command.payload as string);
         break;
       case 'close':
-        closeTab(command.payload as string);
+        await closeTab(command.payload as string);
         break;
       case 'navigate':
         navigate(command.payload as string);
@@ -488,12 +511,28 @@ app.whenReady().then(async () => {
   }, 30_000);
   timer.unref();
 });
-app.on('window-all-closed', () => {
+app.on('before-quit', (event) => {
+  if (cleanupFinished) return;
+  event.preventDefault();
+  if (shuttingDown) return;
+  shuttingDown = true;
+  browsingPrivacy?.dispose();
+  // Destroy remote producers before clearing their storage. Keep the native
+  // window alive until cleanup finishes, so child views can be detached safely.
   sidebar?.closeAll();
   for (const tab of tabs)
     if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close();
-  void session
-    .fromPartition('nido-browsing')
-    .clearStorageData()
-    .finally(() => app.quit());
+  void (async () => {
+    try {
+      await browsingPrivacy?.clearAll();
+      await sidebar?.session.cookies.flushStore();
+    } catch (error) {
+      console.error('No se pudo completar la limpieza al cerrar', error);
+      process.exitCode = 1;
+    } finally {
+      cleanupFinished = true;
+      app.quit();
+    }
+  })();
 });
+app.on('window-all-closed', () => app.quit());

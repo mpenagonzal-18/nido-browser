@@ -14,7 +14,11 @@ await Promise.all([
     sourcemap: true,
   }),
   build({
-    entryPoints: ['src/preload/index.ts', 'src/preload/cookies.ts'],
+    entryPoints: [
+      'src/preload/index.ts',
+      'src/preload/cookies.ts',
+      'src/preload/session-cookies.ts',
+    ],
     outdir: 'dist/preload',
     bundle: true,
     platform: 'node',
