@@ -1,7 +1,11 @@
 {
-  "name": "nido-browser", "version": "0.1.0", "private": true,
-  "description": "Navegador personal con sesiones efímeras y asistentes aislados",
-  "author": "Nido contributors", "license": "MIT", "main": "dist/main/index.js",
+  "name": "nido-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Navegador personal con sesiones ef\u00edmeras y asistentes aislados",
+  "author": "Nido contributors",
+  "license": "MIT",
+  "main": "dist/main/index.js",
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "node scripts/build.mjs",
@@ -12,13 +16,68 @@
     "dist": "npm run build && electron-builder",
     "smoke": "npm run build && node scripts/smoke.mjs"
   },
-  "dependencies": { "@ghostery/adblocker-electron": "2.20.3", "zod": "^4.0.0" },
-  "devDependencies": { "electron": "45.2.1", "electron-builder": "^26.0.0", "esbuild": "^0.27.0", "typescript": "^5.9.0", "vitest": "^4.0.0", "eslint": "^9.0.0", "@eslint/js": "^9.0.0", "typescript-eslint": "^8.0.0", "prettier": "^3.0.0", "@types/node": "^24.0.0" },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "2.20.3",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.27.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "@types/node": "^24.0.0"
+  },
   "build": {
-    "appId": "io.nido.browser", "productName": "Nido", "asar": true,
-    "files": ["dist/**/*", "assets/**/*", "package.json"],
-    "directories": { "output": "release" },
-    "mac": { "category": "public.app-category.navigation", "target": ["dmg", "zip"] },
-    "win": { "target": ["nsis"] }, "linux": { "target": ["AppImage", "deb"], "category": "Network" }
-  }
+    "appId": "io.nido.browser",
+    "productName": "Nido",
+    "asar": true,
+    "files": [
+      "dist/main/**/*",
+      "dist/preload/**/*",
+      "dist/renderer/**/*",
+      "assets/lists/**/*",
+      "assets/icon.png",
+      "LICENSE",
+      "docs/PRIVACY.md",
+      "docs/THIRD_PARTY.md",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.navigation",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "maintainer": "Nido contributors",
+      "syncDesktopName": true
+    },
+    "icon": "assets/icon.png"
+  },
+  "homepage": "https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios.git"
+  },
+  "desktopName": "nido.desktop"
 }

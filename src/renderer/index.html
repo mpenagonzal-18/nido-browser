@@ -1,8 +1,91 @@
-<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' nido: data:; media-src nido:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'"><title>Nido</title><link rel="stylesheet" href="/style.css"></head><body>
-<header><div class="tabrow"><strong class="brand">◒ <span id="brand">Nido</span></strong><div id="tabs" role="tablist"></div><button id="new" title="Nueva pestaña (Ctrl/Cmd+T)">+</button><div class="drag"></div><button id="minimize" aria-label="Minimizar">−</button><button id="maximize" aria-label="Maximizar">□</button><button id="quit" aria-label="Cerrar ventana">×</button></div>
-<div class="toolbar"><button id="back" aria-label="Atrás">←</button><button id="forward" aria-label="Adelante">→</button><button id="reload" aria-label="Recargar">↻</button><button id="home" aria-label="Inicio">⌂</button><form id="address-form"><span id="security" title="Estado de conexión">◇</span><input id="address" aria-label="Dirección o búsqueda" placeholder="Busca o escribe una dirección" autocomplete="off" spellcheck="false"><button type="button" id="blocking" title="Bloqueo en este sitio">◈ <span id="blocked">0</span></button></form><div id="music-controls"></div><button id="ai-toggle" title="Asistentes (Ctrl/Cmd+Shift+A)">✦ IA</button><button id="settings-toggle" aria-label="Ajustes">⚙</button></div>
-<div class="statusbar"><span>ESPACIO PERSONAL</span><span id="privacy-status">Sesión efímera · Sin cookies · Sin telemetría</span><span id="http-warning" hidden>⚠ Conexión HTTP sin cifrar</span></div></header>
-<main id="newtab"><div id="wallpaper"></div><div class="welcome"><p class="eyebrow" id="greeting">TU RINCÓN EN INTERNET</p><h1>Un poco de calma.<br><em>Un mundo por descubrir.</em></h1><form id="search-form"><span>⌕</span><input id="search" placeholder="¿Qué te apetece descubrir?" aria-label="Buscar"><button>↗</button></form><div class="shortcuts"><button data-url="https://duckduckgo.com">D <span>DuckDuckGo</span></button><button data-url="https://wikipedia.org">W <span>Wikipedia</span></button><button data-url="https://github.com">⌘ <span>GitHub</span></button></div><p class="footnote">Tu navegador. Tu ritmo. Tu espacio.</p></div><span class="newtab-bottom">◒ Hecho para quedarte a gusto.</span></main>
-<aside id="sidebar-ui" hidden><div id="provider-bar"></div><div id="sidebar-handle" role="separator" tabindex="0" aria-label="Ancho de la sidebar"></div></aside>
-<section id="settings" hidden aria-label="Ajustes"><div class="settings-heading"><div><p class="eyebrow">A TU MANERA</p><h2>Ajustes</h2></div><button id="settings-close" aria-label="Cerrar ajustes">×</button></div><div id="settings-body"></div></section>
-<div id="toast" role="status" hidden></div><audio id="audio"></audio><script src="/index.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' nido: data:; media-src nido:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>Nido</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="tabrow">
+        <strong class="brand">◒ <span id="brand">Nido</span></strong>
+        <div id="tabs" role="tablist"></div>
+        <button id="new" title="Nueva pestaña (Ctrl/Cmd+T)">+</button>
+        <div class="drag"></div>
+        <button id="minimize" aria-label="Minimizar">−</button
+        ><button id="maximize" aria-label="Maximizar">□</button
+        ><button id="quit" aria-label="Cerrar ventana">×</button>
+      </div>
+      <div class="toolbar">
+        <button id="back" aria-label="Atrás">←</button
+        ><button id="forward" aria-label="Adelante">→</button
+        ><button id="reload" aria-label="Recargar">↻</button
+        ><button id="home" aria-label="Inicio">⌂</button>
+        <form id="address-form">
+          <span id="security" title="Estado de conexión">◇</span
+          ><input
+            id="address"
+            aria-label="Dirección o búsqueda"
+            placeholder="Busca o escribe una dirección"
+            autocomplete="off"
+            spellcheck="false"
+          /><button type="button" id="blocking" title="Bloqueo en este sitio">
+            ◈ <span id="blocked">0</span>
+          </button>
+        </form>
+        <div id="music-controls"></div>
+        <button id="ai-toggle" title="Asistentes (Ctrl/Cmd+Shift+A)">✦ IA</button
+        ><button id="settings-toggle" aria-label="Ajustes">⚙</button>
+      </div>
+      <div class="statusbar">
+        <span>ESPACIO PERSONAL</span
+        ><span id="privacy-status">Sesión efímera · Sin cookies · Sin telemetría</span
+        ><span id="http-warning" hidden>⚠ Conexión HTTP sin cifrar</span>
+      </div>
+    </header>
+    <main id="newtab">
+      <div id="wallpaper"></div>
+      <div class="welcome">
+        <p class="eyebrow" id="greeting">TU RINCÓN EN INTERNET</p>
+        <h1>Un poco de calma.<br /><em>Un mundo por descubrir.</em></h1>
+        <form id="search-form">
+          <span>⌕</span
+          ><input
+            id="search"
+            placeholder="¿Qué te apetece descubrir?"
+            aria-label="Buscar"
+          /><button>↗</button>
+        </form>
+        <div class="shortcuts">
+          <button data-url="https://duckduckgo.com">D <span>DuckDuckGo</span></button
+          ><button data-url="https://wikipedia.org">W <span>Wikipedia</span></button
+          ><button data-url="https://github.com">⌘ <span>GitHub</span></button>
+        </div>
+        <p class="footnote">Tu navegador. Tu ritmo. Tu espacio.</p>
+      </div>
+      <span class="newtab-bottom">◒ Hecho para quedarte a gusto.</span>
+    </main>
+    <aside id="sidebar-ui" hidden>
+      <div id="provider-bar"></div>
+      <div id="sidebar-handle" role="separator" tabindex="0" aria-label="Ancho de la sidebar"></div>
+    </aside>
+    <section id="settings" hidden aria-label="Ajustes">
+      <div class="settings-heading">
+        <div>
+          <p class="eyebrow">A TU MANERA</p>
+          <h2>Ajustes</h2>
+        </div>
+        <button id="settings-close" aria-label="Cerrar ajustes">×</button>
+      </div>
+      <div id="settings-body"></div>
+    </section>
+    <div id="toast" role="status" hidden></div>
+    <audio id="audio"></audio>
+    <script src="/index.js"></script>
+  </body>
+</html>
