@@ -62,7 +62,7 @@ preparados; solo una ejecución en GitHub establece su resultado remoto.
 8. Revisar tráfico con herramientas del sistema sin publicar cookies ni cabeceras
    sensibles. Separar red propia de Chromium y red iniciada por las webs abiertas.
 
-## Resultado local (1 de noviembre de 2026)
+## Resultado de validación (1 de noviembre de 2026)
 
 - `npm ci`, instalación oficial de Electron y build: completados.
 - ESLint y TypeScript estricto: correctos.
@@ -70,7 +70,8 @@ preparados; solo una ejecución en GitHub establece su resultado remoto.
 - Integración Electron: tres arranques con perfil temporal, correcta.
 - electron-builder Linux x64: AppImage y DEB generados; no firmados.
 - Aplicación Linux empaquetada en asar: arranque real y estado de UI verificados.
-- CI remoto, Windows/macOS y autenticación real de los proveedores: sin ejecutar.
+- CI remoto y empaquetado nativo Windows/macOS: correctos en v0.1.0; véase [PUBLICATION](PUBLICATION.md).
+- Interacción gráfica Windows/macOS y autenticación real de proveedores: sin validar.
 
 Los tiempos observados de UI lista en perfiles de prueba fueron aproximadamente
 0,8–1,1 segundos. Son medidas de esta máquina, no benchmarks multiplataforma.

@@ -6,7 +6,11 @@ TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 
 ![Página de inicio de Nido](assets/nido-preview.png)
 
-> Proyecto inicial funcional. Los instaladores de Windows/macOS y los inicios de
+**Versión publicada:** [v0.1.0](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/tag/v0.1.0) ·
+[Instalador Windows .exe](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/download/v0.1.0/Nido.Setup.0.1.0.exe) ·
+[macOS / Linux y checksums](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/tag/v0.1.0).
+
+> Proyecto inicial funcional. La interacción gráfica en Windows/macOS y los inicios de
 > sesión de proveedores necesitan revisión en sus plataformas. No es un navegador
 > auditado ni un sustituto de Tor. Captura de la interfaz ejecutada en Linux headless;
 > capturas específicas de Windows/macOS y sidebar: pendientes.
@@ -176,7 +180,7 @@ git push origin v0.1.0
 
 Alternativa manual: crea un repositorio vacío en GitHub, copia su URL, configura
 `origin` (con `git remote add origin URL` si falta, o `set-url` si existe) y haz
-`git push -u origin main`. No se ha creado ni publicado nada remotamente por ti.
+`git push -u origin main`. La versión **v0.1.0** ya está publicada. Consulta [la evidencia de publicación](docs/PUBLICATION.md).
 
 [Arquitectura](docs/ARCHITECTURE.md) · [Validación y límites](docs/VALIDATION.md) ·
 [Contribuir](CONTRIBUTING.md) · [Licencias de terceros](docs/THIRD_PARTY.md)

@@ -32,8 +32,9 @@ cookies por cabecera/JS/Cookie Store, almacenamiento, terceros, permisos, exclus
 de vídeo, limpieza periódica y por origen, cierre real y persistencia selectiva de
 la sidebar. Los datos del proveedor se conservan mientras los del navegador se borran.
 
-Límites pendientes: inicios de sesión externos reales, CI remoto, Windows/macOS,
-sonido físico y firma de instaladores. Las limpiezas son asíncronas y no protegen
+Límites pendientes: inicios de sesión externos reales, interacción gráfica en
+Windows/macOS, sonido físico y firma de instaladores. La CI y el empaquetado remoto
+se verificaron al publicar v0.1.0; véase PUBLICATION.md. Las limpiezas son asíncronas y no protegen
 contra todas las formas de fingerprinting, identificación por IP/ETag, fallos del
 motor o rastros del sistema operativo; véase PRIVACY.md. Las aplicaciones que
 requieren almacenamiento u offline pueden dejar de funcionar con esta política.
