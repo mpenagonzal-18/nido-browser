@@ -45,6 +45,10 @@ async function run() {
   const browsing = session.fromPartition('nido-browsing', { cache: false });
   const ai = session.fromPartition('persist:ai-sidebar', { cache: false });
   assert.equal(browsing.isPersistent(), false);
+  assert.equal(browsing.storagePath, null);
+  const temporarySession = session.fromPartition('nido-compatible', { cache: true });
+  assert.equal(temporarySession.isPersistent(), false);
+  assert.equal(temporarySession.storagePath, null);
   assert.equal(ai.isPersistent(), true);
   assert.equal(initial.settings.historyEnabled, false);
   if (process.env.NIDO_SMOKE_STAGE === 'removed') {
@@ -85,7 +89,36 @@ async function run() {
   }
   assert.equal(webContents.getAllWebContents().length, 1, 'no remote views created at startup');
   const trackerCookies: string[] = [];
+  let cacheRequests = 0;
   const server = createServer((req, res) => {
+    if (req.url === '/cache-resource') {
+      cacheRequests++;
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.end('cached resource');
+      return;
+    }
+    if (req.url === '/login') {
+      res.setHeader('Content-Type', 'text/html');
+      res.end(
+        `<title>Login</title><form><input name="username" autocomplete="username"><button>Entrar</button></form><script>document.querySelector('form').onsubmit=async e=>{e.preventDefault();const r=await fetch('/authenticate',{method:'POST',credentials:'include'});const data=await r.json();localStorage.setItem('login-token',data.token);location.href='/account'}</script>`,
+      );
+      return;
+    }
+    if (req.url === '/authenticate') {
+      res.setHeader('Set-Cookie', 'auth=fixture; HttpOnly; SameSite=Lax; Path=/');
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ token: 'fixture-token' }));
+      return;
+    }
+    if (req.url === '/account') {
+      res.setHeader('Content-Type', 'text/html');
+      res.end(
+        req.headers.cookie?.includes('auth=fixture')
+          ? '<title>Signed in</title><h1>Sesión iniciada</h1>'
+          : '<title>Login required</title>',
+      );
+      return;
+    }
     if (req.url === '/blank') {
       res.setHeader('Content-Type', 'text/html');
       res.end('<title>Storage observer</title>');
@@ -144,6 +177,62 @@ window.fixtureDone=false;window.attempts={};
   assert.equal(await remote.executeJavaScript('typeof window.nido'), 'undefined');
   assert.equal(await remote.executeJavaScript('typeof require'), 'undefined');
   assert.equal((await browsing.cookies.get({})).length, 0);
+  const addressPoint = await js(
+    `(()=>{const r=document.getElementById('address').getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`,
+  );
+  remote.focus();
+  await wait(30);
+  win.webContents.focus();
+  const clickAddress = () => {
+    win.webContents.sendInputEvent({
+      type: 'mouseDown',
+      button: 'left',
+      clickCount: 1,
+      ...addressPoint,
+    });
+    win.webContents.sendInputEvent({
+      type: 'mouseUp',
+      button: 'left',
+      clickCount: 1,
+      ...addressPoint,
+    });
+  };
+  clickAddress();
+  await wait(30);
+  assert.equal(
+    await js(
+      `(()=>{const i=document.getElementById('address');return i.selectionStart===0&&i.selectionEnd===i.value.length})()`,
+    ),
+    true,
+    'primer clic selecciona toda la dirección',
+  );
+  clickAddress();
+  await wait(30);
+  assert.equal(
+    await js(
+      `(()=>{const i=document.getElementById('address');return i.selectionStart===i.selectionEnd})()`,
+    ),
+    true,
+    'segundo clic permite colocar el cursor',
+  );
+  remote.focus();
+  await wait(30);
+  win.webContents.focus();
+  clickAddress();
+  await wait(30);
+  assert.equal(
+    await js(
+      `(()=>{const i=document.getElementById('address');return i.selectionStart===0&&i.selectionEnd===i.value.length})()`,
+    ),
+    true,
+    'volver de una página también selecciona al primer clic',
+  );
+  console.log(
+    'PASS address: real first click selects all, later clicks place caret, refocus selects again',
+  );
+  await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
+  await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
+  assert.equal(cacheRequests, 1, 'caché de red en memoria reutilizada');
   const headers = JSON.parse(await remote.executeJavaScript(`fetch('/echo').then(r=>r.text())`));
   assert.equal(headers.cookie, undefined);
   assert.equal(headers.dnt, '1');
@@ -189,6 +278,8 @@ window.fixtureDone=false;window.attempts={};
     async () => Object.values(await storageState(remote)).every((list) => list.length === 0),
     'limpieza periódica nativa',
   );
+  await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
+  assert.equal(cacheRequests, 1, 'barrida de almacenamiento no vacía caché de red');
   console.log(
     'PASS storage: document APIs denied, cookie event cleanup, worker transport denied, periodic native-store cleanup',
   );
@@ -399,6 +490,99 @@ window.fixtureDone=false;window.attempts={};
     '#aabbcc',
   );
   assert.equal((await readdir(app.getPath('userData'))).includes('history.json'), false);
+  await call('navigate', `http://127.0.0.2:${port}/login`);
+  const loginId = (await state()).active;
+  await js(`document.getElementById('privacy-toggle').click()`);
+  await until(async () => (await state()).compatible, 'compatibilidad activada explícitamente');
+  const loginView = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find(
+          (w) =>
+            w.session === temporarySession &&
+            w.getURL() === `http://127.0.0.2:${port}/login` &&
+            !w.isLoading(),
+        ),
+    'vista compatible',
+  );
+  await loginView.executeJavaScript(`document.querySelector('form').requestSubmit()`);
+  await until(
+    () => loginView.getURL() === `http://127.0.0.2:${port}/account` && !loginView.isLoading(),
+    'login temporal',
+  );
+  assert.equal(loginView.getTitle(), 'Signed in');
+  assert.equal(
+    await loginView.executeJavaScript(`localStorage.getItem('login-token')`),
+    'fixture-token',
+  );
+  assert.equal((await browsing.cookies.get({ name: 'auth' })).length, 0, 'sesión estricta aislada');
+  loginView.reload();
+  await until(
+    () => !loginView.isLoading() && loginView.getTitle() === 'Signed in',
+    'login conservado al recargar',
+  );
+  await loginView.executeJavaScript(
+    `fetch('http://127.0.0.3:${port}/tracker-fetch',{mode:'no-cors',credentials:'include'})`,
+  );
+  assert.equal(trackerCookies.at(-1), '');
+  assert.equal((await temporarySession.cookies.get({ domain: '127.0.0.3' })).length, 0);
+  await call('new');
+  const strictObserverId = (await state()).active;
+  await call('navigate', `http://127.0.0.4:${port}/blank`);
+  const strictObserver = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find((w) => w.getURL() === `http://127.0.0.4:${port}/blank` && !w.isLoading()),
+    'observador estricto',
+  );
+  assert.equal(strictObserver.session, browsing);
+  await seedStorage(strictObserver);
+  await until(
+    async () =>
+      Object.values(await storageState(strictObserver)).every((list) => list.length === 0),
+    'barrida estricta con login compatible vivo',
+  );
+  assert.equal(
+    await loginView.executeJavaScript(`localStorage.getItem('login-token')`),
+    'fixture-token',
+    'la barrida no rompe el login compatible',
+  );
+  assert.equal((await temporarySession.cookies.get({ name: 'auth' })).length, 1);
+  for (const tab of (await state()).tabs)
+    if (tab.id !== loginId && tab.url.startsWith(`http://127.0.0.2:${port}`))
+      await call('close', tab.id);
+  assert.equal(
+    (await temporarySession.cookies.get({ name: 'auth' })).length,
+    1,
+    'otra pestaña del sitio no cierra el login',
+  );
+  await call('close', loginId);
+  assert.equal(
+    (await temporarySession.cookies.get({ name: 'auth' })).length,
+    0,
+    'última pestaña borra el login',
+  );
+  await call('activate', strictObserverId);
+  await call('navigate', `http://127.0.0.2:${port}/blank`);
+  const cleared = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find(
+          (w) =>
+            w.session === temporarySession &&
+            w.getURL() === `http://127.0.0.2:${port}/blank` &&
+            !w.isLoading(),
+        ),
+    'origen compatible limpio',
+  );
+  assert.equal(await cleared.executeJavaScript(`localStorage.getItem('login-token')`), null);
+  await call('settings', { ...(await state()).settings, compatibilitySites: [] });
+  console.log(
+    'PASS compatibility: opt-in login, reload, isolation, no third-party cookies, survives strict sweep, clears on last tab',
+  );
   await browsing.clearStorageData();
   await ai.cookies.flushStore();
   // Screenshot is a reproducible real UI capture, stored only if explicitly requested.
@@ -440,6 +624,7 @@ window.fixtureDone=false;window.attempts={};
     void (async () => {
       assert.equal((await browsing.cookies.get({})).length, 0, 'limpieza completa antes de salir');
       assert.deepEqual(browsing.serviceWorkers.getAllRunning(), {});
+      assert.equal((await temporarySession.cookies.get({})).length, 0);
       console.log('PASS graceful quit: browsing storage cleared before application exit');
       // All production windows are closed. Seed a legacy on-disk tracker cookie
       // solely to test startup recovery, after removing its fixture-session guard.

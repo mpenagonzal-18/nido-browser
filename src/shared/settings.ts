@@ -20,6 +20,10 @@ export const SettingsSchema = z.object({
   searx: webUrl.default('https://search.example.org/search'),
   suspendMinutes: z.number().min(1).max(240).default(10),
   allowSessionCookies: z.boolean().default(false),
+  compatibilitySites: z
+    .array(z.string().regex(/^(?:[a-z0-9-]+\.)*[a-z0-9-]+$/i))
+    .max(100)
+    .default([]),
   historyEnabled: z.boolean().default(false),
   sidebarSide: z.enum(['left', 'right']).default('right'),
   sidebarWidth: z.number().min(280).max(900).default(400),

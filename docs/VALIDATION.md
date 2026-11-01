@@ -91,3 +91,20 @@ y comprueba la sesión vacía en `will-quit`, después de la limpieza de producc
 Se simula también un perfil antiguo con una cookie de tracker persistente después
 de cerrar las ventanas de producción. El siguiente arranque debe purgarla antes
 de mostrar vistas, manteniendo la cookie de sesión válida del proveedor.
+
+## Regresiones de 0.1.1
+
+- Clics de ratón reales de Electron: primer clic selecciona URL completa, segundo
+  coloca cursor, volver de contenido remoto vuelve a seleccionar con un clic.
+- Recurso HTTP cacheable solicitado repetidamente y después de una barrida estricta:
+  una sola petición al servidor; `isPersistent() === false` y `storagePath === null`.
+- Login local con cookie HttpOnly y token localStorage en modo Temporal explícito:
+  funciona, sobrevive a recarga y barridas estrictas y no comparte datos con la
+  sesión estricta ni permite cookies de terceros. Se conserva mientras quede otra
+  pestaña de la regla y se borra al cerrar la última o volver al modo estricto.
+- La exclusión completa de YouTube del motor continúa cubierta por las pruebas.
+
+No se utilizó una cuenta real de X ni se midió una carga real de YouTube en esta
+máquina: las pruebas reproducen las causas locales de incompatibilidad y pérdida
+de caché. Los controles antiabuso y proveedores OAuth externos quedan fuera de esa
+verificación. Vitest de 0.1.1: 59 pruebas correctas.

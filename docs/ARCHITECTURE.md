@@ -41,3 +41,12 @@ revisar la interacción entre estas opciones en el renderer sandboxed.
 Las limpiezas periódicas, por origen y de cierre se serializan. El cierre se
 intercepta antes de destruir la ventana nativa, se cierran las vistas remotas y se
 espera a la limpieza; esto evita salir antes de resolver las operaciones asíncronas.
+
+Desde 0.1.1 las excepciones de compatibilidad explícitas se ejecutan en la partición
+no persistente `nido-compatible`. La navegación que cambia de regla recrea la vista
+con la sesión correcta antes de cargar el destino; las redirecciones tienen el mismo
+gate. El preload recibe el dominio autorizado mediante un argumento de proceso
+validado y solo permite almacenamiento en documentos propios de ese dominio. Los
+contextos de terceros mantienen guardas. El cierre del último contexto reúne los
+orígenes visitados por todas las pestañas de la regla antes de limpiar. La caché de
+red vive en memoria y no se invalida en las barridas estrictas periódicas.

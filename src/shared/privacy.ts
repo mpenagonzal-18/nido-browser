@@ -100,3 +100,12 @@ export function firstPartyRequest(
     return false;
   }
 }
+
+export function compatibleSite(url: string, sites: string[]): string | undefined {
+  if (!isWebUrl(url)) return;
+  return sites.find((site) => domainMatches(hostname(url), site));
+}
+export function siteDomain(url: string): string {
+  const host = hostname(url);
+  return getDomain(host, { allowPrivateDomains: true }) ?? host;
+}

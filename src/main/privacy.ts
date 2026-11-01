@@ -9,6 +9,7 @@ import {
   firstPartyRequest,
   domainMatches,
   hostname,
+  compatibleSite,
 } from '../shared/privacy';
 import type { Settings } from '../shared/settings';
 export const CHROME_UA = `Mozilla/5.0 (${process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : 'X11; Linux x86_64'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
@@ -25,7 +26,12 @@ export function chromiumPrivacy() {
     'AutofillServerCommunication,MediaRouter,OptimizationHints,InterestFeedContentSuggestions,Translate,SpeculationRulesPrefetch,Prerender2',
   );
 }
-export function configurePrivacy(ses: Session, getSettings: () => Settings, sidebar = false) {
+export function configurePrivacy(
+  ses: Session,
+  getSettings: () => Settings,
+  sidebar = false,
+  temporary = false,
+) {
   ses.setUserAgent(CHROME_UA);
   ses.setSpellCheckerEnabled(false);
   const permissions = new Set<string>();
@@ -99,7 +105,6 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
             }
           : undefined,
       );
-      await ses.clearCache();
     });
   const clearAll = () =>
     enqueue(async () => {
@@ -108,13 +113,14 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
       await ses.clearCache();
       await ses.clearAuthCache();
     });
-  const timer = !sidebar
-    ? setInterval(() => {
-        void sweep().catch((error) =>
-          console.error('No se pudo completar la limpieza periódica', error),
-        );
-      }, 15_000)
-    : undefined;
+  const timer =
+    !sidebar && !temporary
+      ? setInterval(() => {
+          void sweep().catch((error) =>
+            console.error('No se pudo completar la limpieza periódica', error),
+          );
+        }, 15_000)
+      : undefined;
   timer?.unref();
   let cookiePreload: string | undefined;
   const refreshCookies = () => {
@@ -124,9 +130,11 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
         type: 'frame',
         filePath: path.join(
           __dirname,
-          getSettings().allowSessionCookies
-            ? '../preload/session-cookies.js'
-            : '../preload/cookies.js',
+          temporary
+            ? '../preload/temporary-site.js'
+            : getSettings().allowSessionCookies
+              ? '../preload/session-cookies.js'
+              : '../preload/cookies.js',
         ),
         matches: ['http://*/*', 'https://*/*'],
         matchOriginAsFallback: true,
@@ -147,7 +155,14 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
       destinations.set(id, details.url);
     }
     const topUrl = contents ? (destinations.get(contents.id) ?? contents.getURL()) : undefined;
-    return getSettings().allowSessionCookies && firstPartyRequest(details, topUrl);
+    if (
+      temporary &&
+      (!compatibleSite(details.url, getSettings().compatibilitySites) ||
+        !topUrl ||
+        !compatibleSite(topUrl, getSettings().compatibilitySites))
+    )
+      return false;
+    return (temporary || getSettings().allowSessionCookies) && firstPartyRequest(details, topUrl);
   };
   ses.webRequest.onBeforeSendHeaders((details, callback) => {
     // This Chromium-generated header identifies service-worker script loads, even
@@ -172,7 +187,7 @@ export function configurePrivacy(ses: Session, getSettings: () => Settings, side
     const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookie.path}`;
     const allowed = sidebar
       ? providerAllows(url, getSettings().providers)
-      : getSettings().allowSessionCookies &&
+      : (temporary || getSettings().allowSessionCookies) &&
         webContents
           .getAllWebContents()
           .some(

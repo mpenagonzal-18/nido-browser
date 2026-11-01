@@ -10,7 +10,7 @@ una auditoría completa de cada versión de Chromium ni a anonimato de red.
 ## Navegación
 
 Las pestañas comparten una sesión **en memoria** (`nido-browsing`, sin `persist:`)
-con caché de disco desactivada. Por defecto se eliminan `Cookie` y `Set-Cookie`, se
+con caché de red exclusivamente en memoria, sin directorio persistente. Por defecto se eliminan `Cookie` y `Set-Cookie`, se
 neutralizan `document.cookie` y Cookie Store y se escucha `session.cookies.changed`:
 cualquier cookie que aparezca se elimina mediante la API nativa. Esta eliminación
 es asíncrona; no se promete que una cookie nunca exista durante un breve intervalo
@@ -28,15 +28,17 @@ contexto propio abierto. No aporta por sí solo el contexto que originó una esc
 por eso no sustituye a los filtros de red ni a las guardas de los documentos.
 Cambiar el interruptor limpia la sesión y recarga las pestañas.
 
-`localStorage`, `sessionStorage`, IndexedDB y Cache API se deniegan en los documentos
+En modo estricto, `localStorage`, `sessionStorage`, IndexedDB y Cache API se deniegan en los documentos
 de las pestañas con `SecurityError`, incluso cuando se permiten cookies propias.
 Los preloads aislados se ejecutan también en subframes, con sandbox, aislamiento y
 Node desactivado en el contenido remoto. Se desactivan service workers en esas
 vistas, se retira su API de los documentos y se bloquean las peticiones nativas de
 sus scripts (`Service-Worker`) como segunda barrera.
 
-Cada **15 segundos** se ejecutan `session.clearStorageData()` y `clearCache()` en la
-sesión de pestañas. Si el usuario activó cookies propias, la barrida excluye solo
+Cada **15 segundos** se ejecuta `session.clearStorageData()` en la
+sesión estricta de pestañas. La caché HTTP en memoria no se vacía en esa barrida:
+esto evita volver a descargar recursos de vídeo y otros recursos reutilizables.
+Cache API, IndexedDB y los otros almacenes estrictos sí se limpian. Si el usuario activó cookies propias, la barrida excluye solo
 las cookies: los demás almacenes siguen limpiándose. Los preloads conservan
 referencias nativas a Local/Session Storage únicamente en su mundo aislado para
 limpiarlas con el mismo intervalo; no dependen de los getters alterables de la web.
@@ -45,8 +47,8 @@ incluidos subframes y navegaciones anteriores. Como las pestañas comparten sesi
 esto puede cerrar la sesión de otra pestaña del mismo sitio; Chromium también
 puede agrupar el borrado de cookies por dominio. La caché de red se vacía completa.
 Antes del cierre normal del navegador se destruyen las vistas y se **espera** al
-borrado completo de almacenamiento, caché y autenticación de navegación. La sidebar
-queda fuera de todas estas barridas.
+borrado completo de almacenamiento, caché y autenticación de navegación. La sidebar y el modo Temporal
+quedan fuera de estas barridas periódicas.
 
 La denegación de APIs y las barridas pueden romper aplicaciones que dependan de
 almacenamiento o funcionamiento sin conexión. Código de workers dedicados u otras
@@ -55,6 +57,33 @@ medidas son defensa en profundidad, no una prueba de imposibilidad de toda
 escritura. El cierre abrupto, un fallo o matar el proceso puede saltarse la limpieza
 de cierre; la partición de navegación sigue siendo en memoria. No se guarda una
 lista de pestañas ni historial por defecto.
+
+### Compatibilidad temporal por sitio (desde 0.1.1)
+
+El botón **Estricto / Temporal** permite autorizar explícitamente un dominio y sus
+subdominios para poder iniciar sesión en aplicaciones que necesitan almacenamiento.
+La lista autorizada se guarda en ajustes, vacía por defecto. Las cookies y datos de
+la web no se guardan en ese JSON ni se restauran al reiniciar.
+
+Las vistas autorizadas usan otra partición **en memoria**, `nido-compatible`, separada
+de la navegación estricta y de `persist:ai-sidebar`. Se permiten cookies propias,
+Cookie Store y almacenamiento (Local/Session Storage, IndexedDB, Cache API) en el
+documento propio autorizado y frames del mismo origen. Los documentos de terceros
+siguen restringidos y sus cookies se filtran en la red. Service workers siguen
+desactivados. No se aplica la barrida de 15 segundos al almacenamiento autorizado,
+porque borrarlo durante el login rompe tokens y sesiones de las propias aplicaciones.
+
+Las pestañas compatibles comparten esa partición con el aislamiento de orígenes de
+Chromium; no es una partición independiente para cada dominio. Cerrar una pestaña
+del mismo sitio no borra la sesión de las otras. Se limpian sus orígenes al cerrar
+la última pestaña de la regla autorizada, al abandonar ese contexto o volver a
+Estricto, y toda la partición al salir. Las pestañas suspendidas siguen contando
+como abiertas. Los flujos OAuth que cambian a dominios no autorizados pueden fallar;
+no se autorizan nuevos dominios de autenticación de forma automática.
+
+La caché HTTP continúa solo en memoria y se elimina al limpiar un contexto y al
+salir, sin vaciarla cada 15 segundos. Esto mejora la reutilización de recursos,
+pero no garantiza una velocidad concreta de YouTube ni elimina su tráfico propio.
 
 DNT y GPC se envían como señales (los sitios pueden ignorarlas). Referer se reduce
 al origen. Se usa un User-Agent estándar de Chrome, sin marca Electron/Nido.

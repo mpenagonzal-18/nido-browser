@@ -15,6 +15,21 @@ TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 > auditado ni un sustituto de Tor. Captura de la interfaz ejecutada en Linux headless;
 > capturas específicas de Windows/macOS y sidebar: pendientes.
 
+## Correcciones de 0.1.1
+
+- **Inicio de sesión:** en X u otra web que lo necesite, pulsa **Estricto** en la barra
+  para activar **Temporal**. Permite cookies propias y almacenamiento en memoria
+  para ese sitio; se borran al cerrar su última pestaña. No habilita cookies de terceros.
+- **YouTube:** la caché de red se reutiliza en memoria y ya no se vacía cada 15 segundos.
+  Si la web falla por necesitar almacenamiento, activa Temporal para youtube.com.
+  Las exclusiones del bloqueador siguen intactas.
+- **Barra de direcciones:** el primer clic selecciona toda la URL; los siguientes
+  permiten colocar el cursor. Ctrl/Cmd+L sigue seleccionándola completa.
+
+El modo estricto permanece por defecto. La compatibilidad es una elección por sitio,
+no una garantía de acceso: CAPTCHA, OAuth externo o bloqueos de Electron pueden seguir
+fallando. La regresión está probada con un login local, no con cuentas reales de X.
+
 ## Empezar
 
 Requisitos: Node.js **24 LTS**, npm, Git y un sistema compatible con Electron 45.
@@ -65,8 +80,8 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **11,83 kB JS** (4,67 kB gzip), más unos
-**8,52 kB CSS**. El main propio ocupa menos de 50 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **13,24 kB JS** (5,12 kB gzip), más unos
+**8,62 kB CSS**. El main propio ronda 51 kB; Ghostery y Zod se conservan como módulos
 de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **0,9 s** en esta máquina Linux headless con perfil de

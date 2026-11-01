@@ -1,7 +1,7 @@
 import { chooseFiles, mediaUrl, serveMedia, exportSettings, importSettings } from './local-files';
 import { Sidebar } from './sidebar';
 import { Blocking } from './blocking';
-import { hostname } from '../shared/privacy';
+import { hostname, compatibleSite, siteDomain } from '../shared/privacy';
 import {
   app,
   BrowserWindow,
@@ -34,7 +34,13 @@ app.setName(APP_NAME);
 chromiumPrivacy();
 let win: BrowserWindow;
 let settings = defaults();
-type Tab = { state: TabState; view?: WebContentsView; lastActive: number; origins: Set<string> };
+type Tab = {
+  state: TabState;
+  view?: WebContentsView;
+  lastActive: number;
+  origins: Set<string>;
+  site?: string;
+};
 const tabs: Tab[] = [];
 let stateQueued = false;
 function queueState() {
@@ -59,6 +65,10 @@ let active = '';
 let sidebar: Sidebar;
 let overlay = false;
 let browsingPrivacy: ReturnType<typeof configurePrivacy>;
+let temporaryPrivacy: ReturnType<typeof configurePrivacy>;
+let browsingSession: Electron.Session;
+let temporarySession: Electron.Session;
+const temporaryOrigins = new Map<string, Set<string>>();
 let cleanupFinished = false;
 let shuttingDown = false;
 const safePreferences = {
@@ -79,6 +89,7 @@ function sendState() {
     provider: sidebar?.selected ?? '',
     settings,
     version: app.getVersion(),
+    compatible: !!current()?.site,
     blockingDisabled: blocking.disabledSites.has(hostname(current()?.state.url ?? '')),
   };
   win.webContents.send('nido:state', state);
@@ -122,11 +133,20 @@ function createView(tab: Tab) {
       // Regression tests assert that cross-origin frames have no require/process.
       nodeIntegrationInSubFrames: true,
       disableBlinkFeatures: 'ServiceWorker',
-      session: session.fromPartition('nido-browsing', { cache: false }),
+      session: tab.site ? temporarySession : browsingSession,
+      additionalArguments: tab.site ? [`--nido-temporary-site=${tab.site}`] : [],
     },
   });
   const rememberOrigin = (url: string) => {
-    if (isWebUrl(url)) tab.origins.add(new URL(url).origin);
+    if (isWebUrl(url)) {
+      const origin = new URL(url).origin;
+      tab.origins.add(origin);
+      if (tab.site) {
+        const origins = temporaryOrigins.get(tab.site) ?? new Set<string>();
+        origins.add(origin);
+        temporaryOrigins.set(tab.site, origins);
+      }
+    }
   };
   rememberOrigin(tab.state.url);
   view.webContents.on('did-start-navigation', (_event, url) => rememberOrigin(url));
@@ -154,12 +174,18 @@ function createView(tab: Tab) {
   view.webContents.on('will-frame-navigate', (event) => {
     if (!isWebUrl(event.url)) event.preventDefault();
   });
-  view.webContents.on('will-navigate', (event, url) => {
-    if (!isWebUrl(url)) event.preventDefault();
-  });
-  view.webContents.on('will-redirect', (event, url) => {
-    if (!isWebUrl(url)) event.preventDefault();
-  });
+  const navigation = (event: Electron.Event, url: string) => {
+    if (!isWebUrl(url)) {
+      event.preventDefault();
+      return;
+    }
+    if (compatibleSite(url, settings.compatibilitySites) !== tab.site) {
+      event.preventDefault();
+      void navigateTab(tab, url).catch((error) => console.error('Cambio de sesión fallido', error));
+    }
+  };
+  view.webContents.on('will-navigate', navigation);
+  view.webContents.on('will-redirect', navigation);
   view.webContents.on('did-finish-load', () => void blocking.cosmetic(view.webContents));
   view.webContents.on('page-title-updated', (_, title) => {
     tab.state.title = title;
@@ -180,6 +206,7 @@ function createView(tab: Tab) {
     if (shortcut(input)) event.preventDefault();
   });
   void view.webContents.loadURL(tab.state.url).catch(() => {
+    if (tab.view !== view || view.webContents.isDestroyed()) return;
     tab.state.title = 'No se pudo cargar';
     sendState();
   });
@@ -197,6 +224,7 @@ function openTab(url = 'nido://app/newtab') {
     },
     lastActive: Date.now(),
     origins: new Set(),
+    site: compatibleSite(url, settings.compatibilitySites),
   };
   tabs.push(tab);
   createView(tab);
@@ -214,32 +242,49 @@ async function closeTab(id: string) {
   if (!tabs.length) openTab();
   else if (id === active) activate(tabs[Math.min(index, tabs.length - 1)].state.id);
   sendState();
-  await browsingPrivacy.clearOrigins(tab.origins);
+  await clearContext(tab.site, tab.origins, tab);
 }
-function navigate(value: string) {
-  const url = addressToUrl(value, settings.search, settings.searx);
-  const tab = current();
-  if (!tab) return;
+function detachView(tab: Tab) {
+  if (!tab.view) return;
+  win.contentView.removeChildView(tab.view);
+  tab.view.webContents.close();
+  tab.view = undefined;
+}
+async function clearContext(site: string | undefined, origins: Set<string>, except: Tab) {
+  if (!site) {
+    await browsingPrivacy.clearOrigins(origins);
+    return;
+  }
+  if (tabs.some((tab) => tab !== except && tab.site === site)) return;
+  await temporaryPrivacy.clearOrigins(new Set([...origins, ...(temporaryOrigins.get(site) ?? [])]));
+  temporaryOrigins.delete(site);
+}
+async function navigateTab(tab: Tab, url: string) {
+  const site = compatibleSite(url, settings.compatibilitySites);
+  if (site !== tab.site) {
+    detachView(tab);
+    const previous = tab.site;
+    tab.site = site;
+    await clearContext(previous, new Set(tab.origins), tab);
+    tab.origins.clear();
+  }
   tab.state.url = url;
   if (url.startsWith('nido:')) {
-    if (tab.view) {
-      win.contentView.removeChildView(tab.view);
-      tab.view.webContents.close();
-      tab.view = undefined;
-    }
+    detachView(tab);
     tab.state.title = 'Nueva pestaña';
     tab.state.canBack = false;
     tab.state.canForward = false;
-    layout();
-    sendState();
   } else if (!tab.view) {
-    createView(tab);
-    layout();
-  } else {
-    void tab.view.webContents.loadURL(url).catch(() => {});
-    layout();
-  }
+    if (!tab.state.suspended || tab.state.id === active) createView(tab);
+  } else void tab.view.webContents.loadURL(url).catch(() => {});
+  layout();
+  sendState();
 }
+async function navigate(value: string) {
+  const tab = current();
+  if (tab) await navigateTab(tab, addressToUrl(value, settings.search, settings.searx));
+}
+
 function shortcut(input: Electron.Input): boolean {
   if (input.type !== 'keyDown' || !(input.control || input.meta)) return false;
   switch (input.key.toLowerCase()) {
@@ -258,8 +303,8 @@ function shortcut(input: Electron.Input): boolean {
       );
       return true;
     case 'l':
-      win.webContents.send('nido:focus-address');
       win.webContents.focus();
+      win.webContents.send('nido:focus-address');
       return true;
     case 'r':
       current()?.view?.webContents.reload();
@@ -284,6 +329,7 @@ const Command = z.discriminatedUnion('action', [
     'maximize',
     'quit',
     'toggle-blocking',
+    'toggle-compatibility',
     'update-lists',
     'sidebar-toggle',
     'clear-ai',
@@ -306,11 +352,15 @@ const Command = z.discriminatedUnion('action', [
 ]);
 app.whenReady().then(async () => {
   settings = await readSettings();
-  const browsing = session.fromPartition('nido-browsing', { cache: false });
+  const browsing = (browsingSession = session.fromPartition('nido-browsing', { cache: true }));
+  temporarySession = session.fromPartition('nido-compatible', { cache: true });
+  temporaryPrivacy = configurePrivacy(temporarySession, () => settings, false, true);
+  await temporaryPrivacy.clearAll();
   browsingPrivacy = configurePrivacy(browsing, () => settings);
   await browsingPrivacy.clearAll();
   await blocking.load();
   blocking.attach(browsing);
+  blocking.attach(temporarySession);
   protocol.handle('nido', (request) => {
     const url = new URL(request.url);
     if (url.hostname !== 'app') return new Response('No encontrado', { status: 404 });
@@ -367,7 +417,14 @@ app.whenReady().then(async () => {
     if (previous.allowSessionCookies !== settings.allowSessionCookies) {
       browsingPrivacy();
       await browsingPrivacy.clearAll();
-      for (const entry of tabs) entry.view?.webContents.reload();
+      for (const entry of tabs) if (!entry.site) entry.view?.webContents.reload();
+    }
+    if (
+      JSON.stringify(previous.compatibilitySites) !== JSON.stringify(settings.compatibilitySites)
+    ) {
+      for (const entry of tabs)
+        if (compatibleSite(entry.state.url, settings.compatibilitySites) !== entry.site)
+          await navigateTab(entry, entry.state.url);
     }
     await sidebar.reconcile(previous);
     layout();
@@ -433,6 +490,15 @@ app.whenReady().then(async () => {
       case 'update-lists':
         await blocking.updateManually();
         return 'Listas actualizadas. Recarga las páginas.';
+      case 'toggle-compatibility': {
+        if (!tab || !isWebUrl(tab.state.url)) return;
+        const site = tab.site ?? siteDomain(tab.state.url);
+        const sites = tab.site
+          ? settings.compatibilitySites.filter((value) => value !== site)
+          : [...settings.compatibilitySites, site];
+        await applySettings({ ...settings, compatibilitySites: sites });
+        break;
+      }
       case 'toggle-blocking': {
         const host = hostname(tab?.state.url ?? '');
         if (host) {
@@ -456,7 +522,7 @@ app.whenReady().then(async () => {
         await closeTab(command.payload as string);
         break;
       case 'navigate':
-        navigate(command.payload as string);
+        await navigate(command.payload as string);
         break;
       case 'reload':
         tab?.view?.webContents.reload();
@@ -470,7 +536,7 @@ app.whenReady().then(async () => {
           tab.view.webContents.navigationHistory.goForward();
         break;
       case 'home':
-        navigate('');
+        await navigate('');
         break;
       case 'reorder': {
         const p = command.payload as { id: string; target: string };
@@ -517,6 +583,7 @@ app.on('before-quit', (event) => {
   if (shuttingDown) return;
   shuttingDown = true;
   browsingPrivacy?.dispose();
+  temporaryPrivacy?.dispose();
   // Destroy remote producers before clearing their storage. Keep the native
   // window alive until cleanup finishes, so child views can be detached safely.
   sidebar?.closeAll();
@@ -525,6 +592,7 @@ app.on('before-quit', (event) => {
   void (async () => {
     try {
       await browsingPrivacy?.clearAll();
+      await temporaryPrivacy?.clearAll();
       await sidebar?.session.cookies.flushStore();
     } catch (error) {
       console.error('No se pudo completar la limpieza al cerrar', error);

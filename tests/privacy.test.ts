@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   providerAllows,
+  compatibleSite,
+  siteDomain,
   sameSite,
   firstPartyRequest,
   requestHeaders,
@@ -168,4 +170,12 @@ it('deniega cookies si el frame se destruye durante la comprobación', () => {
       'https://site.test',
     ),
   ).toBe(false);
+});
+
+it('la compatibilidad es explícita y respeta límites de dominio', () => {
+  expect(compatibleSite('https://x.com/login', [])).toBeUndefined();
+  expect(compatibleSite('https://api.x.com/login', ['x.com'])).toBe('x.com');
+  expect(compatibleSite('https://x.com.evil.test', ['x.com'])).toBeUndefined();
+  expect(siteDomain('https://www.youtube.com/watch')).toBe('youtube.com');
+  expect(siteDomain('https://alice.github.io')).toBe('alice.github.io');
 });

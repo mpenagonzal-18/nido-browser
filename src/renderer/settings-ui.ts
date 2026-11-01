@@ -150,6 +150,20 @@ export function renderSettings(
   );
   field(
     navigation,
+    'Sitios con compatibilidad temporal (dominios separados por comas)',
+    s.compatibilitySites.join(', '),
+    (v) =>
+      (s.compatibilitySites = v
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)),
+  );
+  const compatibilityNote = document.createElement('p');
+  compatibilityNote.textContent =
+    'Para iniciar sesión en X o mejorar la compatibilidad de YouTube, pulsa Estricto en la barra del sitio. Permite almacenamiento y cookies propias solo en memoria hasta cerrar la última pestaña del sitio; los terceros siguen bloqueados.';
+  navigation.append(compatibilityNote);
+  field(
+    navigation,
     'Historial local persistente',
     s.historyEnabled,
     (v) => (s.historyEnabled = v === 'true'),

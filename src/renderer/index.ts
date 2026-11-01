@@ -1,3 +1,4 @@
+import { addressSelection } from './address';
 import { applyAppearance } from './newtab/appearance';
 import { musicPlayer } from './music';
 import { renderSettings } from './settings-ui';
@@ -12,6 +13,8 @@ function toast(message: string) {
   $('toast').hidden = false;
   setTimeout(() => ($('toast').hidden = true), 5000);
 }
+const focusAddress = addressSelection($<HTMLInputElement>('address'));
+$('privacy-toggle').onclick = () => void call('toggle-compatibility');
 $('ai-toggle').onclick = () => void call('sidebar-toggle');
 $('blocking').onclick = () => void call('toggle-blocking');
 let settingsOpen = false;
@@ -62,11 +65,7 @@ $('search-form').onsubmit = (event) => {
 document
   .querySelectorAll<HTMLElement>('[data-url]')
   .forEach((el) => (el.onclick = () => void call('navigate', el.dataset.url)));
-window.nido.onFocusAddress(() => {
-  const input = $<HTMLInputElement>('address');
-  input.focus();
-  input.select();
-});
+window.nido.onFocusAddress(focusAddress);
 window.nido.onState((next) => {
   state = next;
   render();
@@ -74,8 +73,16 @@ window.nido.onState((next) => {
 function render() {
   void applyAppearance(state.settings);
   updateMusic(state.settings);
-  $('privacy-status').textContent =
-    `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
+  $('privacy-toggle').textContent = state.compatible ? 'Temporal' : 'Estricto';
+  $<HTMLButtonElement>('privacy-toggle').disabled = !state.tabs
+    .find((tab) => tab.id === state.active)
+    ?.url.startsWith('http');
+  $('privacy-toggle').title = state.compatible
+    ? 'Volver al modo estricto y borrar los datos temporales del sitio'
+    : 'Permitir cookies propias y almacenamiento temporal en este sitio para iniciar sesión; se borran al cerrar sus pestañas';
+  $('privacy-status').textContent = state.compatible
+    ? 'Compatibilidad temporal · Cookies de terceros bloqueadas · Sin telemetría'
+    : `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
   const signature = JSON.stringify(state.settings);
   if (settingsOpen && signature !== settingsSignature) drawSettings();
   settingsSignature = signature;

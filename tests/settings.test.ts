@@ -3,6 +3,7 @@ import { defaults, SettingsSchema } from '../src/shared/settings';
 describe('ajustes', () => {
   it('usa privacidad estricta y proveedores aislados por defecto', () => {
     const s = defaults();
+    expect(s.compatibilitySites).toEqual([]);
     expect(s.historyEnabled).toBe(false);
     expect(s.allowSessionCookies).toBe(false);
     expect(s.music.remember).toBe(false);
@@ -16,6 +17,7 @@ describe('ajustes', () => {
   });
   it.each([
     { accent: 'url(https://evil)' },
+    { compatibilitySites: ['https://x.com/path'] },
     { sidebarWidth: 1 },
     { suspendMinutes: 0 },
     { providers: [{ id: 'x', name: 'x', url: 'file:///etc/passwd' }] },

@@ -38,3 +38,20 @@ se verificaron al publicar v0.1.0; véase PUBLICATION.md. Las limpiezas son así
 contra todas las formas de fingerprinting, identificación por IP/ETag, fallos del
 motor o rastros del sistema operativo; véase PRIVACY.md. Las aplicaciones que
 requieren almacenamiento u offline pueden dejar de funcionar con esta política.
+
+## Corrección de compatibilidad 0.1.1
+
+Los reportes de login y carga se relacionaron con denegar todo almacenamiento y
+vaciar la caché HTTP global cada 15 segundos. Se conserva el modo estricto y se
+ofrece una excepción explícita por sitio en otra partición en memoria. Las cookies
+de terceros y service workers permanecen bloqueados, la barrida estricta no toca
+la sesión autorizada y se limpia al cerrar la última pestaña de la regla. El cambio
+de modo y las redirecciones recrean la vista con la sesión correcta. Las pestañas
+suspendidas no se recrean por un cambio de regla hasta que vuelvan a activarse.
+
+La barra ahora selecciona la dirección al primer clic y respeta los clics posteriores
+para editarla. Se verificó con eventos reales del ratón de Electron, también al
+volver del contenido remoto. Se probaron login local, recarga, barrida de almacenamiento,
+terceros, último cierre y reutilización real de caché HTTP exclusivamente en memoria.
+Lint, tipos, 59 pruebas e integración de tres procesos: correctos. No se usaron
+cuentas reales de X ni se midió YouTube remoto; no se promete saltar controles externos.

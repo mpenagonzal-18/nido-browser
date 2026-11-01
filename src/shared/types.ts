@@ -16,6 +16,7 @@ export interface State {
   settings: Settings;
   version: string;
   blockingDisabled: boolean;
+  compatible: boolean;
 }
 export interface Bridge {
   call(action: string, payload?: unknown): Promise<unknown>;
