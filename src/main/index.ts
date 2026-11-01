@@ -1,9 +1,11 @@
+import { chooseFiles, mediaUrl, serveMedia, exportSettings, importSettings } from './local-files';
 import { Sidebar } from './sidebar';
 import { Blocking } from './blocking';
 import { hostname } from '../shared/privacy';
 import { app, BrowserWindow, WebContentsView, session, ipcMain, protocol, net, Menu, clipboard } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { rm } from 'node:fs/promises';
 import { z } from 'zod';
 import { chromiumPrivacy, configurePrivacy, secureContents } from './privacy';
 import { readSettings, recordHistory, saveSettings } from './storage';
@@ -40,7 +42,7 @@ function layout() {
     tab.view?.setBounds({ x: settings.sidebarSide === 'left' ? sidebarWidth : 0, y: 118, width: Math.max(0, width - sidebarWidth), height: Math.max(0, height - 118) });
   }
 }
-function activate(id: string) { const tab = tabs.find(t => t.state.id === id); if (!tab) return; active = id; tab.lastActive = Date.now(); if (tab.state.suspended) createView(tab); layout(); sendState(); }
+function activate(id: string) { const tab = tabs.find(t => t.state.id === id); if (!tab) return; if (current()) current()!.lastActive = Date.now(); active = id; tab.lastActive = Date.now(); if (tab.state.suspended) createView(tab); layout(); sendState(); }
 function createView(tab: Tab) {
   if (tab.state.url === 'nido://app/newtab') { tab.state.suspended = false; return; }
   const view = new WebContentsView({ webPreferences: { ...safePreferences, session: session.fromPartition('nido-browsing', { cache: false }) } });
@@ -62,7 +64,7 @@ function openTab(url = 'nido://app/newtab') {
   tabs.push(tab); createView(tab); activate(tab.state.id); return tab.state.id;
 }
 function closeTab(id: string) { const index = tabs.findIndex(t => t.state.id === id); if (index < 0) return; const [tab] = tabs.splice(index, 1); if (tab.view) { win.contentView.removeChildView(tab.view); tab.view.webContents.close(); } if (!tabs.length) openTab(); else if (id === active) activate(tabs[Math.min(index, tabs.length - 1)].state.id); sendState(); }
-function navigate(value: string) { const url = addressToUrl(value, settings.search, settings.searx); const tab = current(); if (!tab) return; tab.state.url = url; if (url.startsWith('nido:')) { layout(); sendState(); } else if (!tab.view) { createView(tab); layout(); } else { void tab.view.webContents.loadURL(url).catch(() => {}); layout(); } }
+function navigate(value: string) { const url = addressToUrl(value, settings.search, settings.searx); const tab = current(); if (!tab) return; tab.state.url = url; if (url.startsWith('nido:')) { if (tab.view) { win.contentView.removeChildView(tab.view); tab.view.webContents.close(); tab.view = undefined; } tab.state.title = 'Nueva pestaña'; tab.state.canBack = false; tab.state.canForward = false; layout(); sendState(); } else if (!tab.view) { createView(tab); layout(); } else { void tab.view.webContents.loadURL(url).catch(() => {}); layout(); } }
 function shortcut(input: Electron.Input): boolean {
   if (input.type !== 'keyDown' || !(input.control || input.meta)) return false;
   switch (input.key.toLowerCase()) {
@@ -77,8 +79,8 @@ function shortcut(input: Electron.Input): boolean {
 }
 const Command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('state'), payload: z.unknown().optional() }),
-  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit', 'toggle-blocking', 'update-lists', 'sidebar-toggle', 'clear-ai'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
-  ...['activate', 'close', 'navigate', 'provider'].map(action => z.object({ action: z.literal(action), payload: z.string().max(4096) })),
+  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit', 'toggle-blocking', 'update-lists', 'sidebar-toggle', 'clear-ai', 'choose-music', 'choose-wallpaper', 'export-settings', 'import-settings', 'reset-settings', 'clear-history'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
+  ...['activate', 'close', 'navigate', 'provider', 'media-url'].map(action => z.object({ action: z.literal(action), payload: z.string().max(4096) })),
   z.object({ action: z.literal('settings'), payload: SettingsSchema }),
   z.object({ action: z.literal('overlay'), payload: z.boolean() }),
   z.object({ action: z.literal('reorder'), payload: z.object({ id: z.string(), target: z.string() }) }),
@@ -90,7 +92,11 @@ app.whenReady().then(async () => {
   await blocking.load();
   blocking.attach(browsing);
   protocol.handle('nido', request => {
-    const url = new URL(request.url); const file = url.pathname === '/index.js' ? 'index.js' : url.pathname === '/style.css' ? 'style.css' : 'index.html';
+    const url = new URL(request.url);
+    if (url.hostname !== 'app') return new Response('No encontrado', { status: 404 });
+    if (url.pathname.startsWith('/media/')) return serveMedia(request);
+    if (!['/', '/newtab', '/index.js', '/style.css'].includes(url.pathname)) return new Response('No encontrado', { status: 404 });
+    const file = url.pathname === '/index.js' ? 'index.js' : url.pathname === '/style.css' ? 'style.css' : 'index.html';
     return net.fetch(pathToFileURL(path.join(__dirname, '../renderer', file)).href);
   });
   win = new BrowserWindow({ width: 1280, height: 860, minWidth: 780, minHeight: 500, frame: false, backgroundColor: '#131a18', webPreferences: { ...safePreferences, preload: path.join(__dirname, '../preload/index.js') } });
@@ -100,15 +106,23 @@ app.whenReady().then(async () => {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.on('before-input-event', (event, input) => { if (shortcut(input)) event.preventDefault(); });
+  async function applySettings(next: unknown) { const previous = settings; settings = SettingsSchema.parse(next); await saveSettings(settings); if (previous.allowSessionCookies !== settings.allowSessionCookies) { refreshCookies(); await browsing.clearStorageData(); for (const entry of tabs) entry.view?.webContents.reload(); } await sidebar.reconcile(previous); layout(); sendState(); }
   ipcMain.handle('nido:command', async (event, raw) => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('IPC no autorizado');
     const command = Command.parse(raw); const tab = current();
     switch (command.action) {
+      case 'media-url': return mediaUrl(command.payload as string, settings);
+      case 'choose-music': { const files = await chooseFiles(win, 'music'); if (files.length) { settings.music.paths = files; await saveSettings(settings); sendState(); } return files; }
+      case 'choose-wallpaper': { const files = await chooseFiles(win, 'wallpaper'); if (files[0]) { settings.wallpaper.image = files[0]; settings.wallpaper.kind = 'image'; await saveSettings(settings); sendState(); } return files; }
+      case 'export-settings': await exportSettings(win, settings); break;
+      case 'import-settings': { const imported = await importSettings(win); if (imported) await applySettings(imported); break; }
+      case 'reset-settings': await applySettings(defaults()); break;
+      case 'clear-history': await rm(path.join(app.getPath('userData'), 'history.json'), { force: true }); break;
       case 'sidebar-toggle': sidebar.toggle(); break;
       case 'provider': sidebar.select(command.payload as string); break;
       case 'clear-ai': await sidebar.clear(); return 'Datos de IA borrados';
       case 'overlay': overlay = command.payload as boolean; layout(); break;
-      case 'settings': { const previous = settings; settings = SettingsSchema.parse(command.payload); await saveSettings(settings); if (previous.allowSessionCookies !== settings.allowSessionCookies) { refreshCookies(); await browsing.clearStorageData(); for (const entry of tabs) entry.view?.webContents.reload(); } await sidebar.reconcile(previous); layout(); sendState(); break; }
+      case 'settings': await applySettings(command.payload); break;
       case 'update-lists': await blocking.updateManually(); return 'Listas actualizadas. Recarga las páginas.';
       case 'toggle-blocking': { const host = hostname(tab?.state.url ?? ''); if (host) { if (blocking.disabledSites.has(host)) blocking.disabledSites.delete(host); else blocking.disabledSites.add(host); tab?.view?.webContents.reload(); sendState(); } break; }
       case 'state': sendState(); break;

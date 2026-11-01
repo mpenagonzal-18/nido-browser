@@ -1,3 +1,6 @@
+import { applyAppearance } from './newtab/appearance';
+import { musicPlayer } from './music';
+import { renderSettings } from './settings-ui';
 import { APP_NAME } from '../shared/config';
 import type { State } from '../shared/types';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -6,6 +9,13 @@ const call = (action: string, payload?: unknown) => window.nido.call(action, pay
 function toast(message: string) { $('toast').textContent = message; $('toast').hidden = false; setTimeout(() => $('toast').hidden = true, 5000); }
 $('ai-toggle').onclick = () => void call('sidebar-toggle');
 $('blocking').onclick = () => void call('toggle-blocking');
+let settingsOpen = false;
+let settingsSignature = '';
+const updateMusic = musicPlayer(next => { void call('settings', next); });
+function showSettings(open: boolean) { settingsOpen = open; $('settings').hidden = !open; void call('overlay', open); if (open) drawSettings(); }
+function drawSettings() { renderSettings($('settings-body'), state.settings, next => { void call('settings', next); }, action => { void call(action).then(result => { if (typeof result === 'string') toast(result); }); }); }
+$('settings-toggle').onclick = () => showSettings(!settingsOpen);
+$('settings-close').onclick = () => showSettings(false);
 $('brand').textContent = APP_NAME;
 for (const action of ['new', 'back', 'forward', 'reload', 'home', 'minimize', 'maximize', 'quit']) $(action).onclick = () => void call(action);
 $('address-form').onsubmit = event => { event.preventDefault(); void call('navigate', $<HTMLInputElement>('address').value); };
@@ -14,6 +24,11 @@ document.querySelectorAll<HTMLElement>('[data-url]').forEach(el => el.onclick = 
 window.nido.onFocusAddress(() => { const input = $<HTMLInputElement>('address'); input.focus(); input.select(); });
 window.nido.onState(next => { state = next; render(); });
 function render() {
+  void applyAppearance(state.settings); updateMusic(state.settings);
+  $('privacy-status').textContent = `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies temporales' : 'Sin cookies'} · Sin telemetría`;
+  const signature = JSON.stringify(state.settings);
+  if (settingsOpen && signature !== settingsSignature && !($('settings-body').contains(document.activeElement))) drawSettings();
+  settingsSignature = signature;
   const tab = state.tabs.find(t => t.id === state.active);
   $('tabs').replaceChildren(...state.tabs.map(t => {
     const el = document.createElement('div'); el.className = `tab ${t.id === state.active ? 'active' : ''}`; el.draggable = true; el.role = 'tab'; el.setAttribute('aria-selected', String(t.id === state.active));
@@ -41,6 +56,6 @@ function renderSidebar() {
 let resizing = false;
 $('sidebar-handle').onpointerdown = event => { resizing = true; $('sidebar-handle').setPointerCapture(event.pointerId); void call('overlay', true); };
 $('sidebar-handle').onpointermove = event => { if (!resizing) return; const width = state.settings.sidebarSide === 'left' ? event.clientX : innerWidth - event.clientX; state.settings.sidebarWidth = Math.max(280, Math.min(900, width)); renderSidebar(); };
-$('sidebar-handle').onpointerup = () => { resizing = false; void call('settings', state.settings); void call('overlay', false); };
+$('sidebar-handle').onpointerup = () => { resizing = false; void call('settings', state.settings); void call('overlay', settingsOpen); };
 $('sidebar-handle').onkeydown = event => { if (['ArrowLeft','ArrowRight'].includes(event.key)) { event.preventDefault(); const direction = state.settings.sidebarSide === 'left' ? 1 : -1; state.settings.sidebarWidth = Math.max(280, Math.min(900, state.settings.sidebarWidth + (event.key === 'ArrowRight' ? 20 : -20) * direction)); void call('settings', state.settings); } };
 window.addEventListener('resize', () => { if (state) renderSidebar(); });
