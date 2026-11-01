@@ -4,6 +4,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 let state: State;
 const call = (action: string, payload?: unknown) => window.nido.call(action, payload).catch(error => toast(String(error)));
 function toast(message: string) { $('toast').textContent = message; $('toast').hidden = false; setTimeout(() => $('toast').hidden = true, 5000); }
+$('ai-toggle').onclick = () => void call('sidebar-toggle');
 $('blocking').onclick = () => void call('toggle-blocking');
 $('brand').textContent = APP_NAME;
 for (const action of ['new', 'back', 'forward', 'reload', 'home', 'minimize', 'maximize', 'quit']) $(action).onclick = () => void call(action);
@@ -23,6 +24,23 @@ function render() {
   if (document.activeElement !== $('address')) $<HTMLInputElement>('address').value = tab?.url.startsWith('nido:') ? '' : tab?.url ?? '';
   $<HTMLButtonElement>('back').disabled = !tab?.canBack; $<HTMLButtonElement>('forward').disabled = !tab?.canForward;
   $('newtab').hidden = tab?.url !== 'nido://app/newtab'; $('blocked').textContent = state.blockingDisabled ? 'OFF' : String(tab?.blocked ?? 0);
+  renderSidebar();
   $('http-warning').hidden = !tab?.url.startsWith('http:');
 }
 void call('state');
+
+function renderSidebar() {
+  const width = Math.min(state.settings.sidebarWidth, Math.max(280, window.innerWidth - 360));
+  const left = state.settings.sidebarSide === 'left';
+  $('sidebar-ui').hidden = !state.sidebar;
+  Object.assign($('sidebar-ui').style, { width: `${width}px`, left: left ? '0' : 'auto', right: left ? 'auto' : '0' });
+  Object.assign($('sidebar-handle').style, { left: left ? 'auto' : '-3px', right: left ? '-3px' : 'auto' });
+  Object.assign($('newtab').style, { left: state.sidebar && left ? `${width}px` : '0', right: state.sidebar && !left ? `${width}px` : '0' });
+  $('provider-bar').replaceChildren(...state.settings.providers.map(p => { const button = document.createElement('button'); button.textContent = `${p.icon} ${p.name}`; button.classList.toggle('selected', p.id === state.provider); button.onclick = () => void call('provider', p.id); return button; }));
+}
+let resizing = false;
+$('sidebar-handle').onpointerdown = event => { resizing = true; $('sidebar-handle').setPointerCapture(event.pointerId); void call('overlay', true); };
+$('sidebar-handle').onpointermove = event => { if (!resizing) return; const width = state.settings.sidebarSide === 'left' ? event.clientX : innerWidth - event.clientX; state.settings.sidebarWidth = Math.max(280, Math.min(900, width)); renderSidebar(); };
+$('sidebar-handle').onpointerup = () => { resizing = false; void call('settings', state.settings); void call('overlay', false); };
+$('sidebar-handle').onkeydown = event => { if (['ArrowLeft','ArrowRight'].includes(event.key)) { event.preventDefault(); const direction = state.settings.sidebarSide === 'left' ? 1 : -1; state.settings.sidebarWidth = Math.max(280, Math.min(900, state.settings.sidebarWidth + (event.key === 'ArrowRight' ? 20 : -20) * direction)); void call('settings', state.settings); } };
+window.addEventListener('resize', () => { if (state) renderSidebar(); });

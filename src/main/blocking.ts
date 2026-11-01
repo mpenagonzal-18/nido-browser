@@ -21,6 +21,7 @@ export class Blocking {
   }
   attach(ses: Session, sidebar = false) {
     ses.webRequest.onBeforeRequest((details, callback) => {
+      if (sidebar && details.resourceType === 'subFrame' && !providerAllows(details.url, this.getSettings().providers)) { callback({ cancel: true }); return; }
       const topUrl = webContents.fromId(details.webContentsId ?? -1)?.getURL() ?? details.referrer;
       // This gate precedes ALL engine calls, including subresources and frames.
       const exempt = this.exempt(details.url, sidebar) || this.exempt(topUrl, sidebar);

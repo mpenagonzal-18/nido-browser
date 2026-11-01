@@ -1,14 +1,15 @@
+import { Sidebar } from './sidebar';
 import { Blocking } from './blocking';
 import { hostname } from '../shared/privacy';
-import { app, BrowserWindow, WebContentsView, session, ipcMain, protocol, net } from 'electron';
+import { app, BrowserWindow, WebContentsView, session, ipcMain, protocol, net, Menu, clipboard } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { chromiumPrivacy, configurePrivacy, secureContents } from './privacy';
-import { readSettings, recordHistory } from './storage';
+import { readSettings, recordHistory, saveSettings } from './storage';
 import { APP_NAME } from '../shared/config';
 import { addressToUrl, isWebUrl } from '../shared/navigation';
-import { defaults } from '../shared/settings';
+import { defaults, SettingsSchema } from '../shared/settings';
 import type { State, TabState } from '../shared/types';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'nido', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
@@ -20,19 +21,23 @@ type Tab = { state: TabState; view?: WebContentsView; lastActive: number };
 const tabs: Tab[] = [];
 const blocking = new Blocking(() => settings, id => { const tab = tabs.find(t => t.view?.webContents.id === id); if (tab) { tab.state.blocked++; sendState(); } });
 let active = '';
+let sidebar: Sidebar;
+let overlay = false;
+let refreshCookies: () => void;
 const safePreferences = { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } as const;
 function current() { return tabs.find(t => t.state.id === active); }
 function sendState() {
   if (!win || win.isDestroyed()) return;
-  const state: State = { tabs: tabs.map(t => t.state), active, sidebar: false, provider: settings.providers[0]?.id ?? '', settings, version: app.getVersion(), blockingDisabled: blocking.disabledSites.has(hostname(current()?.state.url ?? '')) };
+  const state: State = { tabs: tabs.map(t => t.state), active, sidebar: sidebar?.visible ?? false, provider: sidebar?.selected ?? '', settings, version: app.getVersion(), blockingDisabled: blocking.disabledSites.has(hostname(current()?.state.url ?? '')) };
   win.webContents.send('nido:state', state);
 }
 function layout() {
   if (!win) return;
   const [width, height] = win.getContentSize();
+  const sidebarWidth = sidebar?.layout(width, height, overlay) ?? 0;
   for (const tab of tabs) {
-    tab.view?.setVisible(tab.state.id === active && tab.state.url !== 'nido://app/newtab');
-    tab.view?.setBounds({ x: 0, y: 118, width, height: Math.max(0, height - 118) });
+    tab.view?.setVisible(!overlay && tab.state.id === active && tab.state.url !== 'nido://app/newtab');
+    tab.view?.setBounds({ x: settings.sidebarSide === 'left' ? sidebarWidth : 0, y: 118, width: Math.max(0, width - sidebarWidth), height: Math.max(0, height - 118) });
   }
 }
 function activate(id: string) { const tab = tabs.find(t => t.state.id === id); if (!tab) return; active = id; tab.lastActive = Date.now(); if (tab.state.suspended) createView(tab); layout(); sendState(); }
@@ -41,6 +46,7 @@ function createView(tab: Tab) {
   const view = new WebContentsView({ webPreferences: { ...safePreferences, session: session.fromPartition('nido-browsing', { cache: false }) } });
   secureContents(view.webContents);
   tab.view = view; tab.state.suspended = false; win.contentView.addChildView(view);
+  view.webContents.on('context-menu', (_, params) => { Menu.buildFromTemplate([{ label: 'Copiar texto seleccionado para la IA', enabled: Boolean(params.selectionText), click: () => clipboard.writeText(params.selectionText) }, { label: 'Copiar URL de la página actual', click: () => clipboard.writeText(view.webContents.getURL()) }]).popup({ window: win }); });
   view.webContents.setWindowOpenHandler(({ url }) => { if (isWebUrl(url)) openTab(url); return { action: 'deny' }; });
   view.webContents.on('will-navigate', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
   view.webContents.on('will-redirect', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
@@ -60,6 +66,7 @@ function navigate(value: string) { const url = addressToUrl(value, settings.sear
 function shortcut(input: Electron.Input): boolean {
   if (input.type !== 'keyDown' || !(input.control || input.meta)) return false;
   switch (input.key.toLowerCase()) {
+    case 'a': if (input.shift) { sidebar.toggle(); return true; } return false;
     case 't': openTab(); return true;
     case 'w': closeTab(active); return true;
     case 'l': win.webContents.send('nido:focus-address'); win.webContents.focus(); return true;
@@ -70,14 +77,16 @@ function shortcut(input: Electron.Input): boolean {
 }
 const Command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('state'), payload: z.unknown().optional() }),
-  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit', 'toggle-blocking', 'update-lists'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
-  ...['activate', 'close', 'navigate'].map(action => z.object({ action: z.literal(action), payload: z.string().max(4096) })),
+  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit', 'toggle-blocking', 'update-lists', 'sidebar-toggle', 'clear-ai'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
+  ...['activate', 'close', 'navigate', 'provider'].map(action => z.object({ action: z.literal(action), payload: z.string().max(4096) })),
+  z.object({ action: z.literal('settings'), payload: SettingsSchema }),
+  z.object({ action: z.literal('overlay'), payload: z.boolean() }),
   z.object({ action: z.literal('reorder'), payload: z.object({ id: z.string(), target: z.string() }) }),
 ]);
 app.whenReady().then(async () => {
   settings = await readSettings();
   const browsing = session.fromPartition('nido-browsing', { cache: false });
-  configurePrivacy(browsing, () => settings);
+  refreshCookies = configurePrivacy(browsing, () => settings);
   await blocking.load();
   blocking.attach(browsing);
   protocol.handle('nido', request => {
@@ -85,6 +94,7 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(path.join(__dirname, '../renderer', file)).href);
   });
   win = new BrowserWindow({ width: 1280, height: 860, minWidth: 780, minHeight: 500, frame: false, backgroundColor: '#131a18', webPreferences: { ...safePreferences, preload: path.join(__dirname, '../preload/index.js') } });
+  sidebar = new Sidebar(win, () => settings, blocking, openTab, () => { layout(); sendState(); }, shortcut);
   win.on('resize', layout);
   secureContents(win.webContents);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -94,6 +104,11 @@ app.whenReady().then(async () => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('IPC no autorizado');
     const command = Command.parse(raw); const tab = current();
     switch (command.action) {
+      case 'sidebar-toggle': sidebar.toggle(); break;
+      case 'provider': sidebar.select(command.payload as string); break;
+      case 'clear-ai': await sidebar.clear(); return 'Datos de IA borrados';
+      case 'overlay': overlay = command.payload as boolean; layout(); break;
+      case 'settings': { const previous = settings; settings = SettingsSchema.parse(command.payload); await saveSettings(settings); if (previous.allowSessionCookies !== settings.allowSessionCookies) { refreshCookies(); await browsing.clearStorageData(); for (const entry of tabs) entry.view?.webContents.reload(); } await sidebar.reconcile(previous); layout(); sendState(); break; }
       case 'update-lists': await blocking.updateManually(); return 'Listas actualizadas. Recarga las páginas.';
       case 'toggle-blocking': { const host = hostname(tab?.state.url ?? ''); if (host) { if (blocking.disabledSites.has(host)) blocking.disabledSites.delete(host); else blocking.disabledSites.add(host); tab?.view?.webContents.reload(); sendState(); } break; }
       case 'state': sendState(); break;
@@ -112,6 +127,6 @@ app.whenReady().then(async () => {
     }
   });
   await win.loadURL('nido://app/'); openTab();
-  const timer = setInterval(() => { for (const tab of tabs) if (tab.state.id !== active && tab.view && Date.now() - tab.lastActive > settings.suspendMinutes * 60_000) { win.contentView.removeChildView(tab.view); tab.view.webContents.close(); tab.view = undefined; tab.state.suspended = true; } sendState(); }, 30_000); timer.unref();
+  const timer = setInterval(() => { sidebar.unloadIdle(); for (const tab of tabs) if (tab.state.id !== active && tab.view && Date.now() - tab.lastActive > settings.suspendMinutes * 60_000) { win.contentView.removeChildView(tab.view); tab.view.webContents.close(); tab.view = undefined; tab.state.suspended = true; } sendState(); }, 30_000); timer.unref();
 });
-app.on('window-all-closed', () => { for (const tab of tabs) if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close(); void session.fromPartition('nido-browsing').clearStorageData().finally(() => app.quit()); });
+app.on('window-all-closed', () => { sidebar?.closeAll(); for (const tab of tabs) if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close(); void session.fromPartition('nido-browsing').clearStorageData().finally(() => app.quit()); });
