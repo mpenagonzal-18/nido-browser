@@ -153,7 +153,8 @@ npm run dist
 En el host correspondiente genera NSIS (.exe), DMG/ZIP o AppImage/DEB. Los workflows
 [CI](.github/workflows/ci.yml) comprueban lint, tipos, pruebas, build e integración,
 y empaquetado en tres sistemas. [Release](.github/workflows/release.yml) genera
-instaladores al publicar un tag `v*` y los adjunta a una release **borrador**.
+instaladores al publicar un tag `v*` y publica la release con todos los instaladores y sus checksums, después de
+superar los controles y construir en las tres plataformas.
 Configura firma y notarización antes de una distribución pública de confianza.
 Los artefactos de ejemplo no están firmados.
 
