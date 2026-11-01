@@ -50,3 +50,24 @@ En X o YouTube, activar Temporal mediante el botón Estricto de la barra permite
 los datos propios necesarios sin habilitar cookies de terceros. La selección al
 primer clic se corrige directamente. Los inicios de sesión reales y CAPTCHA no
 se validaron con cuentas externas: la regresión usa un servidor local.
+
+## Actualización 0.1.2
+
+Publicada el 1 de noviembre de 2026 desde `9ad8d2f2dcec5727187898084a56808db776fa75`.
+
+- [CI](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/actions/runs/41346285179): Success, 1 min 41 s.
+- [Release](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/actions/runs/41346286423): Success, 3 min 57 s.
+- 60 pruebas unitarias e integración real entre procesos: cookies propias globales,
+  cierre de pestañas, navegación entre dominios, reinicio, restauración de localStorage,
+  bloqueo de terceros y borrado explícito independiente de la sidebar de IA.
+- [Windows .exe](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/download/v0.1.2/Nido.Setup.0.1.2.exe).
+- [macOS/Linux y checksums](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/tag/v0.1.2).
+
+Instalador Windows descargado y verificado: 123483501 bytes.
+SHA-256: `5404842476ad9ebe224df59da96693edb69a225f7a81ca6e878c0f59b353f5f7`.
+
+**Cambio de política solicitado:** cookies propias y almacenamiento persistentes
+para todos los sitios por defecto. No hace falta activar Temporal por página. Los
+datos se conservan en disco entre reinicios, sujetos a la caducidad de cada web.
+La preferencia Borrar al salir y el modo estricto quedan disponibles; el botón de
+borrado elimina datos de navegación sin borrar la sesión de los asistentes.
