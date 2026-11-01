@@ -2,6 +2,8 @@ import { app, BrowserWindow, WebContentsView, session, ipcMain, protocol, net } 
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
+import { chromiumPrivacy, configurePrivacy, secureContents, upgradeHttp } from './privacy';
+import { readSettings, recordHistory } from './storage';
 import { APP_NAME } from '../shared/config';
 import { addressToUrl, isWebUrl } from '../shared/navigation';
 import { defaults } from '../shared/settings';
@@ -9,8 +11,9 @@ import type { State, TabState } from '../shared/types';
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'nido', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 app.setName(APP_NAME);
+chromiumPrivacy();
 let win: BrowserWindow;
-const settings = defaults();
+let settings = defaults();
 type Tab = { state: TabState; view?: WebContentsView; lastActive: number };
 const tabs: Tab[] = [];
 let active = '';
@@ -33,13 +36,14 @@ function activate(id: string) { const tab = tabs.find(t => t.state.id === id); i
 function createView(tab: Tab) {
   if (tab.state.url === 'nido://app/newtab') { tab.state.suspended = false; return; }
   const view = new WebContentsView({ webPreferences: { ...safePreferences, session: session.fromPartition('nido-browsing', { cache: false }) } });
+  secureContents(view.webContents);
   tab.view = view; tab.state.suspended = false; win.contentView.addChildView(view);
   view.webContents.setWindowOpenHandler(({ url }) => { if (isWebUrl(url)) openTab(url); return { action: 'deny' }; });
   view.webContents.on('will-navigate', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
   view.webContents.on('will-redirect', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
   view.webContents.on('page-title-updated', (_, title) => { tab.state.title = title; sendState(); });
   const update = () => { tab.state.url = view.webContents.getURL() || tab.state.url; tab.state.canBack = view.webContents.navigationHistory.canGoBack(); tab.state.canForward = view.webContents.navigationHistory.canGoForward(); sendState(); };
-  view.webContents.on('did-navigate', update); view.webContents.on('did-navigate-in-page', update);
+  view.webContents.on('did-navigate', (_, url) => { update(); if (settings.historyEnabled) void recordHistory(url, tab.state.title); }); view.webContents.on('did-navigate-in-page', update);
   view.webContents.on('before-input-event', (event, input) => { if (shortcut(input)) event.preventDefault(); });
   void view.webContents.loadURL(tab.state.url).catch(() => { tab.state.title = 'No se pudo cargar'; sendState(); });
 }
@@ -67,12 +71,17 @@ const Command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reorder'), payload: z.object({ id: z.string(), target: z.string() }) }),
 ]);
 app.whenReady().then(async () => {
+  settings = await readSettings();
+  const browsing = session.fromPartition('nido-browsing', { cache: false });
+  configurePrivacy(browsing, () => settings);
+  browsing.webRequest.onBeforeRequest((details, callback) => { const upgraded = details.resourceType === 'mainFrame' ? upgradeHttp(details.url) : undefined; callback(upgraded ? { redirectURL: upgraded } : {}); });
   protocol.handle('nido', request => {
     const url = new URL(request.url); const file = url.pathname === '/index.js' ? 'index.js' : url.pathname === '/style.css' ? 'style.css' : 'index.html';
     return net.fetch(pathToFileURL(path.join(__dirname, '../renderer', file)).href);
   });
   win = new BrowserWindow({ width: 1280, height: 860, minWidth: 780, minHeight: 500, frame: false, backgroundColor: '#131a18', webPreferences: { ...safePreferences, preload: path.join(__dirname, '../preload/index.js') } });
   win.on('resize', layout);
+  secureContents(win.webContents);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.on('before-input-event', (event, input) => { if (shortcut(input)) event.preventDefault(); });
@@ -98,4 +107,4 @@ app.whenReady().then(async () => {
   await win.loadURL('nido://app/'); openTab();
   const timer = setInterval(() => { for (const tab of tabs) if (tab.state.id !== active && tab.view && Date.now() - tab.lastActive > settings.suspendMinutes * 60_000) { win.contentView.removeChildView(tab.view); tab.view.webContents.close(); tab.view = undefined; tab.state.suspended = true; } sendState(); }, 30_000); timer.unref();
 });
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => { for (const tab of tabs) if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close(); void session.fromPartition('nido-browsing').clearStorageData().finally(() => app.quit()); });
