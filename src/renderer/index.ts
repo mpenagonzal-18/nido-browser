@@ -4,6 +4,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 let state: State;
 const call = (action: string, payload?: unknown) => window.nido.call(action, payload).catch(error => toast(String(error)));
 function toast(message: string) { $('toast').textContent = message; $('toast').hidden = false; setTimeout(() => $('toast').hidden = true, 5000); }
+$('blocking').onclick = () => void call('toggle-blocking');
 $('brand').textContent = APP_NAME;
 for (const action of ['new', 'back', 'forward', 'reload', 'home', 'minimize', 'maximize', 'quit']) $(action).onclick = () => void call(action);
 $('address-form').onsubmit = event => { event.preventDefault(); void call('navigate', $<HTMLInputElement>('address').value); };
@@ -21,7 +22,7 @@ function render() {
   }));
   if (document.activeElement !== $('address')) $<HTMLInputElement>('address').value = tab?.url.startsWith('nido:') ? '' : tab?.url ?? '';
   $<HTMLButtonElement>('back').disabled = !tab?.canBack; $<HTMLButtonElement>('forward').disabled = !tab?.canForward;
-  $('newtab').hidden = tab?.url !== 'nido://app/newtab'; $('blocked').textContent = String(tab?.blocked ?? 0);
+  $('newtab').hidden = tab?.url !== 'nido://app/newtab'; $('blocked').textContent = state.blockingDisabled ? 'OFF' : String(tab?.blocked ?? 0);
   $('http-warning').hidden = !tab?.url.startsWith('http:');
 }
 void call('state');

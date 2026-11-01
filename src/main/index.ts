@@ -1,8 +1,10 @@
+import { Blocking } from './blocking';
+import { hostname } from '../shared/privacy';
 import { app, BrowserWindow, WebContentsView, session, ipcMain, protocol, net } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { chromiumPrivacy, configurePrivacy, secureContents, upgradeHttp } from './privacy';
+import { chromiumPrivacy, configurePrivacy, secureContents } from './privacy';
 import { readSettings, recordHistory } from './storage';
 import { APP_NAME } from '../shared/config';
 import { addressToUrl, isWebUrl } from '../shared/navigation';
@@ -16,12 +18,13 @@ let win: BrowserWindow;
 let settings = defaults();
 type Tab = { state: TabState; view?: WebContentsView; lastActive: number };
 const tabs: Tab[] = [];
+const blocking = new Blocking(() => settings, id => { const tab = tabs.find(t => t.view?.webContents.id === id); if (tab) { tab.state.blocked++; sendState(); } });
 let active = '';
 const safePreferences = { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true } as const;
 function current() { return tabs.find(t => t.state.id === active); }
 function sendState() {
   if (!win || win.isDestroyed()) return;
-  const state: State = { tabs: tabs.map(t => t.state), active, sidebar: false, provider: settings.providers[0]?.id ?? '', settings, version: app.getVersion(), blockingDisabled: false };
+  const state: State = { tabs: tabs.map(t => t.state), active, sidebar: false, provider: settings.providers[0]?.id ?? '', settings, version: app.getVersion(), blockingDisabled: blocking.disabledSites.has(hostname(current()?.state.url ?? '')) };
   win.webContents.send('nido:state', state);
 }
 function layout() {
@@ -41,6 +44,7 @@ function createView(tab: Tab) {
   view.webContents.setWindowOpenHandler(({ url }) => { if (isWebUrl(url)) openTab(url); return { action: 'deny' }; });
   view.webContents.on('will-navigate', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
   view.webContents.on('will-redirect', (event, url) => { if (!isWebUrl(url)) event.preventDefault(); });
+  view.webContents.on('did-finish-load', () => void blocking.cosmetic(view.webContents));
   view.webContents.on('page-title-updated', (_, title) => { tab.state.title = title; sendState(); });
   const update = () => { tab.state.url = view.webContents.getURL() || tab.state.url; tab.state.canBack = view.webContents.navigationHistory.canGoBack(); tab.state.canForward = view.webContents.navigationHistory.canGoForward(); sendState(); };
   view.webContents.on('did-navigate', (_, url) => { update(); if (settings.historyEnabled) void recordHistory(url, tab.state.title); }); view.webContents.on('did-navigate-in-page', update);
@@ -66,7 +70,7 @@ function shortcut(input: Electron.Input): boolean {
 }
 const Command = z.discriminatedUnion('action', [
   z.object({ action: z.literal('state'), payload: z.unknown().optional() }),
-  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
+  ...['new', 'reload', 'back', 'forward', 'home', 'minimize', 'maximize', 'quit', 'toggle-blocking', 'update-lists'].map(action => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
   ...['activate', 'close', 'navigate'].map(action => z.object({ action: z.literal(action), payload: z.string().max(4096) })),
   z.object({ action: z.literal('reorder'), payload: z.object({ id: z.string(), target: z.string() }) }),
 ]);
@@ -74,7 +78,8 @@ app.whenReady().then(async () => {
   settings = await readSettings();
   const browsing = session.fromPartition('nido-browsing', { cache: false });
   configurePrivacy(browsing, () => settings);
-  browsing.webRequest.onBeforeRequest((details, callback) => { const upgraded = details.resourceType === 'mainFrame' ? upgradeHttp(details.url) : undefined; callback(upgraded ? { redirectURL: upgraded } : {}); });
+  await blocking.load();
+  blocking.attach(browsing);
   protocol.handle('nido', request => {
     const url = new URL(request.url); const file = url.pathname === '/index.js' ? 'index.js' : url.pathname === '/style.css' ? 'style.css' : 'index.html';
     return net.fetch(pathToFileURL(path.join(__dirname, '../renderer', file)).href);
@@ -85,10 +90,12 @@ app.whenReady().then(async () => {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', event => event.preventDefault());
   win.webContents.on('before-input-event', (event, input) => { if (shortcut(input)) event.preventDefault(); });
-  ipcMain.handle('nido:command', (event, raw) => {
+  ipcMain.handle('nido:command', async (event, raw) => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) throw new Error('IPC no autorizado');
     const command = Command.parse(raw); const tab = current();
     switch (command.action) {
+      case 'update-lists': await blocking.updateManually(); return 'Listas actualizadas. Recarga las páginas.';
+      case 'toggle-blocking': { const host = hostname(tab?.state.url ?? ''); if (host) { if (blocking.disabledSites.has(host)) blocking.disabledSites.delete(host); else blocking.disabledSites.add(host); tab?.view?.webContents.reload(); sendState(); } break; }
       case 'state': sendState(); break;
       case 'new': openTab(); break;
       case 'activate': activate(command.payload as string); break;
