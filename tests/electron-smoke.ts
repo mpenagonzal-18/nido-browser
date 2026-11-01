@@ -41,9 +41,18 @@ async function run() {
       `new Promise(resolve=>{const off=window.nido.onState(s=>{off();resolve(s)});window.nido.call('state')})`,
     );
   const initial = await state();
+  if (process.env.NIDO_SMOKE_STAGE === 'first') {
+    assert.equal(initial.settings.browsingMode, 'persistent');
+    await call('settings', { ...initial.settings, browsingMode: 'strict' });
+  }
   console.log(`UI lista: ${Date.now() - started} ms (perfil de prueba)`);
   const browsing = session.fromPartition('nido-browsing', { cache: false });
   const ai = session.fromPartition('persist:ai-sidebar', { cache: false });
+  const regular = session.fromPartition('persist:nido-browsing', { cache: true });
+  const sessionOnly = session.fromPartition('nido-session', { cache: true });
+  assert.equal(regular.isPersistent(), true);
+  assert.notEqual(regular.storagePath, null);
+  assert.equal(sessionOnly.isPersistent(), false);
   assert.equal(browsing.isPersistent(), false);
   assert.equal(browsing.storagePath, null);
   const temporarySession = session.fromPartition('nido-compatible', { cache: true });
@@ -53,6 +62,11 @@ async function run() {
   assert.equal(initial.settings.historyEnabled, false);
   if (process.env.NIDO_SMOKE_STAGE === 'removed') {
     assert.equal(initial.settings.providers.length, 0);
+    assert.equal(
+      (await regular.cookies.get({ name: 'auth' })).length,
+      0,
+      'borrado manual persiste',
+    );
     assert.equal((await ai.cookies.get({})).length, 0);
     console.log('PASS configuration change: removed provider data is cleared on startup');
     clearTimeout(deadline);
@@ -78,6 +92,81 @@ async function run() {
     console.log(
       'PASS restart: settings and allowed AI cookie persist; browsing cookies do not; no autoplay',
     );
+    assert.equal(initial.settings.browsingMode, 'persistent');
+    assert.equal(
+      (await regular.cookies.get({ name: 'auth' })).length,
+      1,
+      'cookie normal conservada entre reinicios',
+    );
+    assert.equal(
+      (await sessionOnly.cookies.get({})).length,
+      0,
+      'perfil de sesión se borra al salir',
+    );
+    const savedPort = Number(
+      await readFile(path.join(app.getPath('userData'), 'fixture-port'), 'utf8'),
+    );
+    const restartedServer = createServer((req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      if (req.url === '/tracker') {
+        res.setHeader('Set-Cookie', 'tracker=bad; SameSite=None; Secure');
+        res.end('tracker');
+        return;
+      }
+      res.setHeader('Content-Type', 'text/html');
+      res.end(
+        req.headers.cookie?.includes('auth=fixture')
+          ? '<title>Restored login</title>'
+          : '<title>Login required</title>',
+      );
+    });
+    await new Promise<void>((resolve) => restartedServer.listen(savedPort, resolve));
+    await call('navigate', `http://127.0.0.2:${savedPort}/account?restart=1`);
+    const restored = await until(
+      () =>
+        webContents
+          .getAllWebContents()
+          .find(
+            (w) =>
+              w.session === regular && w.getURL().includes('/account?restart=1') && !w.isLoading(),
+          ),
+      'login tras reinicio',
+    );
+    assert.equal(restored.getTitle(), 'Restored login');
+    assert.equal(
+      await restored.executeJavaScript(`localStorage.getItem('login-token')`),
+      'fixture-token',
+    );
+    await restored.executeJavaScript(
+      `fetch('http://127.0.0.3:${savedPort}/tracker',{mode:'no-cors',credentials:'include'})`,
+    );
+    assert.equal(
+      (await regular.cookies.get({ domain: '127.0.0.3' })).length,
+      0,
+      'terceros bloqueados también con persistencia',
+    );
+    await call('clear-browsing-data');
+    assert.equal((await regular.cookies.get({ name: 'auth' })).length, 0);
+    const cleared = await until(
+      () =>
+        webContents
+          .getAllWebContents()
+          .find(
+            (w) =>
+              w.session === regular && w.getURL().includes('/account?restart=1') && !w.isLoading(),
+          ),
+      'borrado manual',
+    );
+    assert.equal(await cleared.executeJavaScript(`localStorage.getItem('login-token')`), null);
+    assert.equal(
+      (await ai.cookies.get({ name: 'ai-session' })).length,
+      1,
+      'borrado de navegación no toca IA',
+    );
+    console.log(
+      'PASS persistent profile: cookies and storage restored across processes, third parties denied, explicit clear preserves AI',
+    );
+    restartedServer.close();
     const edited = JSON.parse(
       await readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8'),
     );
@@ -105,7 +194,7 @@ async function run() {
       return;
     }
     if (req.url === '/authenticate') {
-      res.setHeader('Set-Cookie', 'auth=fixture; HttpOnly; SameSite=Lax; Path=/');
+      res.setHeader('Set-Cookie', 'auth=fixture; HttpOnly; SameSite=Lax; Path=/; Max-Age=3600');
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ token: 'fixture-token' }));
       return;
@@ -315,7 +404,7 @@ window.fixtureDone=false;window.attempts={};
     `fetch('http://127.0.0.3:${port}/tracker-fetch',{mode:'no-cors',credentials:'include'})`,
   );
   await remote.executeJavaScript(
-    `new Promise(resolve=>{const handler=e=>{if(e.origin==='http://127.0.0.3:${port}'&&'trackerCookie' in e.data){window.removeEventListener('message',handler);window.trackerCookie=e.data.trackerCookie;window.trackerSecurity=e.data;resolve()}};window.addEventListener('message',handler);const frame=document.createElement('iframe');frame.src='http://127.0.0.3:${port}/tracker-frame';document.body.append(frame)})`,
+    `new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error('Tracker frame did not answer')),10000);const handler=e=>{if(e.origin==='http://127.0.0.3:${port}'&&'trackerCookie' in e.data){clearTimeout(timeout);window.removeEventListener('message',handler);window.trackerCookie=e.data.trackerCookie;window.trackerSecurity=e.data;resolve()}};window.addEventListener('message',handler);const frame=document.createElement('iframe');frame.src='http://127.0.0.3:${port}/tracker-frame';document.body.append(frame)})`,
   );
   assert.equal(await remote.executeJavaScript('window.trackerCookie'), '');
   const frameSecurity = await remote.executeJavaScript('window.trackerSecurity');
@@ -492,6 +581,10 @@ window.fixtureDone=false;window.attempts={};
   assert.equal((await readdir(app.getPath('userData'))).includes('history.json'), false);
   await call('navigate', `http://127.0.0.2:${port}/login`);
   const loginId = (await state()).active;
+  await until(
+    async () => await js(`!document.getElementById('privacy-toggle').disabled`),
+    'botón de compatibilidad listo',
+  );
   await js(`document.getElementById('privacy-toggle').click()`);
   await until(async () => (await state()).compatible, 'compatibilidad activada explícitamente');
   const loginView = await until(
@@ -615,6 +708,77 @@ window.fixtureDone=false;window.attempts={};
     expirationDate: Date.now() / 1000 + 3600,
   });
   assert.equal((await browsing.cookies.get({ name: 'temporary' })).length, 1);
+  await writeFile(path.join(app.getPath('userData'), 'fixture-port'), String(port));
+  await call('settings', { ...(await state()).settings, browsingMode: 'session' });
+  await call('navigate', `http://127.0.0.2:${port}/login`);
+  const memoryLogin = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find((w) => w.session === sessionOnly && w.getURL().endsWith('/login') && !w.isLoading()),
+    'cookies globales de sesión',
+  );
+  await memoryLogin.executeJavaScript(`document.querySelector('form').requestSubmit()`);
+  await until(
+    () => memoryLogin.getTitle() === 'Signed in' && !memoryLogin.isLoading(),
+    'login global de sesión',
+  );
+  const memoryTabId = (await state()).active;
+  await call('close', memoryTabId);
+  assert.equal(
+    (await sessionOnly.cookies.get({ name: 'auth' })).length,
+    1,
+    'cerrar pestaña no borra sesión global',
+  );
+  await call('new');
+  await call('navigate', `http://127.0.0.2:${port}/account`);
+  const memoryAgain = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find(
+          (w) => w.session === sessionOnly && w.getURL().endsWith('/account') && !w.isLoading(),
+        ),
+    'reabrir sitio sin activar Temporal',
+  );
+  assert.equal(memoryAgain.getTitle(), 'Signed in');
+  await call('settings', { ...(await state()).settings, browsingMode: 'persistent' });
+  assert.equal((await regular.cookies.get({ name: 'auth' })).length, 0, 'perfiles separados');
+  await call('navigate', `http://127.0.0.2:${port}/login`);
+  const permanentLogin = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find((w) => w.session === regular && w.getURL().endsWith('/login') && !w.isLoading()),
+    'perfil permanente',
+  );
+  await permanentLogin.executeJavaScript(`document.querySelector('form').requestSubmit()`);
+  await until(
+    () => permanentLogin.getTitle() === 'Signed in' && !permanentLogin.isLoading(),
+    'login permanente',
+  );
+  await call('navigate', `http://127.0.0.4:${port}/blank`);
+  await call('navigate', `http://127.0.0.2:${port}/account`);
+  const account = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find((w) => w.session === regular && w.getURL().endsWith('/account') && !w.isLoading()),
+    'visitar otra página y volver',
+  );
+  assert.equal(account.getTitle(), 'Signed in');
+  assert.equal(
+    await account.executeJavaScript(`localStorage.getItem('login-token')`),
+    'fixture-token',
+  );
+  assert.equal(
+    await js(`document.getElementById('privacy-toggle').textContent`),
+    'Cookies activadas',
+  );
+  assert.equal((await sessionOnly.cookies.get({ name: 'auth' })).length, 1);
+  console.log(
+    'PASS global profiles: no per-site toggle, login survives closed tab and cross-site navigation, persistent profile separate from session and AI',
+  );
   server.close();
   console.log(
     'PASS Electron: tabs, headers, cookies, CSS/network banner blocking, isolated sidebar, external links, clear data, local audio',
@@ -625,6 +789,12 @@ window.fixtureDone=false;window.attempts={};
       assert.equal((await browsing.cookies.get({})).length, 0, 'limpieza completa antes de salir');
       assert.deepEqual(browsing.serviceWorkers.getAllRunning(), {});
       assert.equal((await temporarySession.cookies.get({})).length, 0);
+      assert.equal((await sessionOnly.cookies.get({})).length, 0);
+      assert.equal(
+        (await regular.cookies.get({ name: 'auth' })).length,
+        1,
+        'cierre no borra cookies permanentes',
+      );
       console.log('PASS graceful quit: browsing storage cleared before application exit');
       // All production windows are closed. Seed a legacy on-disk tracker cookie
       // solely to test startup recovery, after removing its fixture-session guard.

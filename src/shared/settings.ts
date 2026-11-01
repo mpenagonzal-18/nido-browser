@@ -19,6 +19,7 @@ export const SettingsSchema = z.object({
   search: z.enum(['duckduckgo', 'brave', 'startpage', 'searxng']).default('duckduckgo'),
   searx: webUrl.default('https://search.example.org/search'),
   suspendMinutes: z.number().min(1).max(240).default(10),
+  browsingMode: z.enum(['persistent', 'session', 'strict']).default('persistent'),
   allowSessionCookies: z.boolean().default(false),
   compatibilitySites: z
     .array(z.string().regex(/^(?:[a-z0-9-]+\.)*[a-z0-9-]+$/i))

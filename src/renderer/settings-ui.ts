@@ -141,27 +141,51 @@ export function renderSettings(
     (v) => (s.suspendMinutes = Number(v)),
     'number',
   );
-  field(
+  const mode = field(
     navigation,
-    'Cookies propias durante esta sesión',
-    s.allowSessionCookies,
-    (v) => (s.allowSessionCookies = v === 'true'),
-    'checkbox',
+    'Cookies y datos de todas las páginas',
+    s.browsingMode,
+    (v) => (s.browsingMode = v as Settings['browsingMode']),
+    'text',
+    ['persistent', 'session', 'strict'],
+  ) as HTMLSelectElement;
+  const labels = {
+    persistent: 'Conservar entre reinicios',
+    session: 'Borrar al salir',
+    strict: 'Privacidad estricta',
+  };
+  for (const option of mode.options)
+    option.textContent = labels[option.value as keyof typeof labels];
+  const note = document.createElement('p');
+  note.textContent =
+    s.browsingMode === 'persistent'
+      ? 'Mantiene tus sesiones en todas las páginas entre reinicios. Los datos se guardan en este equipo; los terceros siguen bloqueados. Elegir otro modo no borra lo ya guardado: usa el botón de borrado para eliminarlo.'
+      : s.browsingMode === 'session'
+        ? 'Permite cookies propias y datos en todas las páginas hasta cerrar Nido. No borra automáticamente los datos de un perfil permanente usado antes.'
+        : 'Deniega almacenamiento y cookies en el perfil estricto. Los datos del perfil permanente anterior solo se eliminan con el botón de borrado.';
+  navigation.append(note);
+  button(navigation, 'Borrar cookies y datos de sitios (cierra sesiones)', () =>
+    action('clear-browsing-data'),
   );
-  field(
-    navigation,
-    'Sitios con compatibilidad temporal (dominios separados por comas)',
-    s.compatibilitySites.join(', '),
-    (v) =>
-      (s.compatibilitySites = v
-        .split(',')
-        .map((value) => value.trim().toLowerCase())
-        .filter(Boolean)),
-  );
-  const compatibilityNote = document.createElement('p');
-  compatibilityNote.textContent =
-    'Para iniciar sesión en X o mejorar la compatibilidad de YouTube, pulsa Estricto en la barra del sitio. Permite almacenamiento y cookies propias solo en memoria hasta cerrar la última pestaña del sitio; los terceros siguen bloqueados.';
-  navigation.append(compatibilityNote);
+  if (s.browsingMode === 'strict') {
+    field(
+      navigation,
+      'Cookies propias solo durante la sesión estricta',
+      s.allowSessionCookies,
+      (v) => (s.allowSessionCookies = v === 'true'),
+      'checkbox',
+    );
+    field(
+      navigation,
+      'Excepciones temporales del modo estricto (dominios separados por comas)',
+      s.compatibilitySites.join(', '),
+      (v) =>
+        (s.compatibilitySites = v
+          .split(',')
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean)),
+    );
+  }
   field(
     navigation,
     'Historial local persistente',

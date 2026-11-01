@@ -14,7 +14,10 @@ function toast(message: string) {
   setTimeout(() => ($('toast').hidden = true), 5000);
 }
 const focusAddress = addressSelection($<HTMLInputElement>('address'));
-$('privacy-toggle').onclick = () => void call('toggle-compatibility');
+$('privacy-toggle').onclick = () => {
+  if (state?.settings.browsingMode !== 'strict') showSettings(true);
+  else void call('toggle-compatibility');
+};
 $('ai-toggle').onclick = () => void call('sidebar-toggle');
 $('blocking').onclick = () => void call('toggle-blocking');
 let settingsOpen = false;
@@ -73,16 +76,25 @@ window.nido.onState((next) => {
 function render() {
   void applyAppearance(state.settings);
   updateMusic(state.settings);
-  $('privacy-toggle').textContent = state.compatible ? 'Temporal' : 'Estricto';
+  const globalMode = state.settings.browsingMode !== 'strict';
+  $('privacy-toggle').textContent = globalMode
+    ? 'Cookies activadas'
+    : state.compatible
+      ? 'Temporal'
+      : 'Estricto';
   $<HTMLButtonElement>('privacy-toggle').disabled = !state.tabs
     .find((tab) => tab.id === state.active)
     ?.url.startsWith('http');
-  $('privacy-toggle').title = state.compatible
-    ? 'Volver al modo estricto y borrar los datos temporales del sitio'
-    : 'Permitir cookies propias y almacenamiento temporal en este sitio para iniciar sesión; se borran al cerrar sus pestañas';
-  $('privacy-status').textContent = state.compatible
-    ? 'Compatibilidad temporal · Cookies de terceros bloqueadas · Sin telemetría'
-    : `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
+  $('privacy-toggle').title = globalMode
+    ? 'Cookies propias activadas en todas las páginas. Gestionar datos en ajustes.'
+    : state.compatible
+      ? 'Volver al modo estricto y borrar los datos temporales del sitio'
+      : 'Permitir cookies propias y almacenamiento temporal para este sitio';
+  $('privacy-status').textContent = globalMode
+    ? `${state.settings.browsingMode === 'persistent' ? 'Sesiones guardadas en este equipo' : 'Datos hasta cerrar Nido'} · Cookies de terceros bloqueadas · Sin telemetría`
+    : state.compatible
+      ? 'Compatibilidad temporal · Cookies de terceros bloqueadas · Sin telemetría'
+      : `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
   const signature = JSON.stringify(state.settings);
   if (settingsOpen && signature !== settingsSignature) drawSettings();
   settingsSignature = signature;

@@ -108,3 +108,16 @@ No se utilizó una cuenta real de X ni se midió una carga real de YouTube en es
 máquina: las pruebas reproducen las causas locales de incompatibilidad y pérdida
 de caché. Los controles antiabuso y proveedores OAuth externos quedan fuera de esa
 verificación. Vitest de 0.1.1: 59 pruebas correctas.
+
+## Persistencia global de 0.1.2
+
+El primer arranque comprueba el nuevo valor predeterminado y selecciona después el
+modo estricto para ejecutar todas sus regresiones anteriores. Al final prueba el
+modo de sesión y el permanente: login, cierre de pestaña y reapertura, cambio de
+dominio y vuelta sin seleccionar excepciones. El cierre real elimina el perfil en
+memoria, pero conserva el permanente. Un segundo proceso restaura cookie persistente
+y localStorage del mismo origen y prueba terceros bloqueados y borrado explícito
+sin afectar a la IA. El tercer proceso verifica que el borrado fue duradero.
+
+Las cookies del fixture de login tienen Max-Age explícito: no se alteran ni garantizan
+las caducidades del servidor. Vitest: 60 pruebas. No se probaron cuentas reales externas.

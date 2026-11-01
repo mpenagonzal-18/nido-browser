@@ -1,6 +1,6 @@
 # ◒ Nido
 
-Un navegador personal de escritorio con pestañas efímeras, una página de inicio
+Un navegador personal de escritorio con privacidad configurable, una página de inicio
 tranquila y asistentes de IA en una sesión separada. Electron **45.2.1** +
 TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 
@@ -15,20 +15,23 @@ TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 > auditado ni un sustituto de Tor. Captura de la interfaz ejecutada en Linux headless;
 > capturas específicas de Windows/macOS y sidebar: pendientes.
 
-## Correcciones de 0.1.1
+## Cookies y login: cambio de 0.1.2
 
-- **Inicio de sesión:** en X u otra web que lo necesite, pulsa **Estricto** en la barra
-  para activar **Temporal**. Permite cookies propias y almacenamiento en memoria
-  para ese sitio; se borran al cerrar su última pestaña. No habilita cookies de terceros.
-- **YouTube:** la caché de red se reutiliza en memoria y ya no se vacía cada 15 segundos.
-  Si la web falla por necesitar almacenamiento, activa Temporal para youtube.com.
-  Las exclusiones del bloqueador siguen intactas.
-- **Barra de direcciones:** el primer clic selecciona toda la URL; los siguientes
-  permiten colocar el cursor. Ctrl/Cmd+L sigue seleccionándola completa.
+Las cookies propias y los datos de las páginas están **activados globalmente** y se
+**conservan entre reinicios**. No hay que activar Temporal por sitio. Cerrar una
+pestaña o visitar otro dominio tampoco borra el login. Las cookies de terceros
+siguen bloqueadas y la sesión de IA permanece separada.
 
-El modo estricto permanece por defecto. La compatibilidad es una elección por sitio,
-no una garantía de acceso: CAPTCHA, OAuth externo o bloqueos de Electron pueden seguir
-fallando. La regresión está probada con un login local, no con cuentas reales de X.
+Los datos de navegación ahora se guardan en este equipo. En Ajustes puedes elegir
+**Conservar entre reinicios**, **Borrar al salir** o **Privacidad estricta**, y usar
+**Borrar cookies y datos de sitios** para cerrar sesiones y eliminar lo guardado.
+Cambiar de modo no borra automáticamente el perfil permanente anterior. Los sitios
+pueden imponer su propia caducidad o volver a pedir autenticación.
+
+Se mantienen la caché de red para evitar descargas repetidas y la selección de la
+URL completa al primer clic. El historial propio de Nido sigue desactivado y no
+hay telemetría ni sincronización. Consulta [PRIVACY](docs/PRIVACY.md): las garantías
+del antiguo modo estricto no son las del nuevo modo normal.
 
 ## Empezar
 
@@ -80,8 +83,8 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **13,24 kB JS** (5,12 kB gzip), más unos
-**8,62 kB CSS**. El main propio ronda 51 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **14,28 kB JS** (5,45 kB gzip), más unos
+**8,62 kB CSS**. El main propio ronda 53 kB; Ghostery y Zod se conservan como módulos
 de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **0,9 s** en esta máquina Linux headless con perfil de
@@ -94,15 +97,12 @@ no hace peticiones de red. Las páginas que abres pueden hacer peticiones y mant
 conexiones de fondo. Nido no promete que todas las conexiones posteriores correspondan
 a un clic individual: son las propias webs las que cargan sus recursos.
 
-Las pestañas usan una sesión **en memoria**, sin caché en disco ni historial
-persistente por defecto. Se bloquean cookies de red y `document.cookie`; se pueden
-permitir solo para el sitio propio durante la ejecución actual; los terceros
-siguen bloqueados. Las APIs de almacenamiento y los service workers se deniegan,
-con limpieza adicional cada 15 segundos, por origen al cerrar pestañas y completa
-antes de salir. Se envían DNT/GPC, se recorta Referer y
-se limita WebRTC. Los permisos parten de denegación y los admitidos requieren una
-confirmación por sitio. El historial opcional es un JSON exclusivamente local.
-No hay gestor de descargas web en esta versión.
+La navegación normal usa una sesión persistente local con cookies propias y
+almacenamiento habilitados globalmente. El modo Borrar al salir usa otra sesión
+en memoria; el modo estricto mantiene las restricciones originales como opción.
+Los terceros se filtran en cabeceras y documentos, se envía DNT/GPC, se recorta
+Referer y se limita WebRTC. Los permisos requieren confirmación por sitio y el
+historial opcional es un JSON exclusivamente local. No hay gestor de descargas web.
 
 EasyList + EasyPrivacy se empaquetan localmente. La actualización requiere pulsar
 **Actualizar listas manualmente**. Se bloquean anuncios/rastreadores de red y banners

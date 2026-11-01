@@ -9,7 +9,9 @@ export function installDocumentPolicy(allowFirstPartyCookies: boolean, temporary
     let frame: Window = window;
     keepStorage =
       !!temporarySite &&
-      (location.hostname === temporarySite || location.hostname.endsWith(`.${temporarySite}`));
+      (temporarySite === '*' ||
+        location.hostname === temporarySite ||
+        location.hostname.endsWith(`.${temporarySite}`));
     while (keepStorage && frame !== frame.top) {
       frame = frame.parent;
       keepStorage = frame.location.origin === location.origin;

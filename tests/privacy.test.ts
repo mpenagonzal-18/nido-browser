@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   providerAllows,
+  browsingContext,
   compatibleSite,
   siteDomain,
   sameSite,
@@ -178,4 +179,19 @@ it('la compatibilidad es explícita y respeta límites de dominio', () => {
   expect(compatibleSite('https://x.com.evil.test', ['x.com'])).toBeUndefined();
   expect(siteDomain('https://www.youtube.com/watch')).toBe('youtube.com');
   expect(siteDomain('https://alice.github.io')).toBe('alice.github.io');
+});
+
+it('cookies globales no requieren excepciones y el modo estricto sigue disponible', () => {
+  expect(
+    browsingContext('https://x.com', { browsingMode: 'persistent', compatibilitySites: [] }),
+  ).toBe('@persistent');
+  expect(
+    browsingContext('https://youtube.com', { browsingMode: 'persistent', compatibilitySites: [] }),
+  ).toBe('@persistent');
+  expect(
+    browsingContext('https://x.com', { browsingMode: 'session', compatibilitySites: [] }),
+  ).toBe('@session');
+  expect(
+    browsingContext('https://x.com', { browsingMode: 'strict', compatibilitySites: [] }),
+  ).toBeUndefined();
 });

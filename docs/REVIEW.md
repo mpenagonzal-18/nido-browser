@@ -55,3 +55,19 @@ volver del contenido remoto. Se probaron login local, recarga, barrida de almace
 terceros, último cierre y reutilización real de caché HTTP exclusivamente en memoria.
 Lint, tipos, 59 pruebas e integración de tres procesos: correctos. No se usaron
 cuentas reales de X ni se midió YouTube remoto; no se promete saltar controles externos.
+
+## Cambio global solicitado en 0.1.2
+
+Se sustituye el modo estricto por defecto por cookies y almacenamiento propios
+persistentes para todos los sitios. El usuario confirmó que quiere conservarlos
+entre reinicios. Se documenta expresamente que este modo escribe datos en disco y
+no cumple las antiguas garantías de navegación efímera. La UI ya no requiere activar
+excepciones por cada sitio; conserva modos Borrar al salir y Estricto como opciones.
+
+Se comprobó que cerrar pestañas o cambiar de dominio no borra el login normal,
+que el perfil persistente se restaura en un proceso nuevo, que el perfil en memoria
+se vacía al salir y que el borrado manual no afecta a los asistentes. Se mantienen
+los filtros de terceros y la seguridad de las vistas. Lint, TypeScript y 60 pruebas
+unitarias correctos, además de la integración de tres arranques. El test de iframe
+espera al estado habilitado del control y limita la espera de mensajes para no
+depender del orden de entrega del IPC ni bloquear indefinidamente el runner.

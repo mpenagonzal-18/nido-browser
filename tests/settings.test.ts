@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { defaults, SettingsSchema } from '../src/shared/settings';
 describe('ajustes', () => {
-  it('usa privacidad estricta y proveedores aislados por defecto', () => {
+  it('activa cookies propias globales y mantiene aislados los proveedores', () => {
     const s = defaults();
+    expect(s.browsingMode).toBe('persistent');
     expect(s.compatibilitySites).toEqual([]);
     expect(s.historyEnabled).toBe(false);
     expect(s.allowSessionCookies).toBe(false);

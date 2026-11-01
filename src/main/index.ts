@@ -1,7 +1,7 @@
 import { chooseFiles, mediaUrl, serveMedia, exportSettings, importSettings } from './local-files';
 import { Sidebar } from './sidebar';
 import { Blocking } from './blocking';
-import { hostname, compatibleSite, siteDomain } from '../shared/privacy';
+import { hostname, siteDomain, browsingContext } from '../shared/privacy';
 import {
   app,
   BrowserWindow,
@@ -66,6 +66,10 @@ let sidebar: Sidebar;
 let overlay = false;
 let browsingPrivacy: ReturnType<typeof configurePrivacy>;
 let temporaryPrivacy: ReturnType<typeof configurePrivacy>;
+let regularPrivacy: ReturnType<typeof configurePrivacy>;
+let sessionPrivacy: ReturnType<typeof configurePrivacy>;
+let regularSession: Electron.Session;
+let sessionOnly: Electron.Session;
 let browsingSession: Electron.Session;
 let temporarySession: Electron.Session;
 const temporaryOrigins = new Map<string, Set<string>>();
@@ -133,15 +137,23 @@ function createView(tab: Tab) {
       // Regression tests assert that cross-origin frames have no require/process.
       nodeIntegrationInSubFrames: true,
       disableBlinkFeatures: 'ServiceWorker',
-      session: tab.site ? temporarySession : browsingSession,
-      additionalArguments: tab.site ? [`--nido-temporary-site=${tab.site}`] : [],
+      session:
+        tab.site === '@persistent'
+          ? regularSession
+          : tab.site === '@session'
+            ? sessionOnly
+            : tab.site
+              ? temporarySession
+              : browsingSession,
+      additionalArguments:
+        tab.site && !tab.site.startsWith('@') ? [`--nido-temporary-site=${tab.site}`] : [],
     },
   });
   const rememberOrigin = (url: string) => {
     if (isWebUrl(url)) {
       const origin = new URL(url).origin;
       tab.origins.add(origin);
-      if (tab.site) {
+      if (tab.site && !tab.site.startsWith('@')) {
         const origins = temporaryOrigins.get(tab.site) ?? new Set<string>();
         origins.add(origin);
         temporaryOrigins.set(tab.site, origins);
@@ -179,7 +191,7 @@ function createView(tab: Tab) {
       event.preventDefault();
       return;
     }
-    if (compatibleSite(url, settings.compatibilitySites) !== tab.site) {
+    if (browsingContext(url, settings) !== tab.site) {
       event.preventDefault();
       void navigateTab(tab, url).catch((error) => console.error('Cambio de sesión fallido', error));
     }
@@ -224,7 +236,7 @@ function openTab(url = 'nido://app/newtab') {
     },
     lastActive: Date.now(),
     origins: new Set(),
-    site: compatibleSite(url, settings.compatibilitySites),
+    site: browsingContext(url, settings),
   };
   tabs.push(tab);
   createView(tab);
@@ -251,6 +263,7 @@ function detachView(tab: Tab) {
   tab.view = undefined;
 }
 async function clearContext(site: string | undefined, origins: Set<string>, except: Tab) {
+  if (site?.startsWith('@')) return; // Global profiles retain site sessions across tabs and navigations.
   if (!site) {
     await browsingPrivacy.clearOrigins(origins);
     return;
@@ -260,7 +273,7 @@ async function clearContext(site: string | undefined, origins: Set<string>, exce
   temporaryOrigins.delete(site);
 }
 async function navigateTab(tab: Tab, url: string) {
-  const site = compatibleSite(url, settings.compatibilitySites);
+  const site = browsingContext(url, settings);
   if (site !== tab.site) {
     detachView(tab);
     const previous = tab.site;
@@ -339,6 +352,7 @@ const Command = z.discriminatedUnion('action', [
     'import-settings',
     'reset-settings',
     'clear-history',
+    'clear-browsing-data',
   ].map((action) => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
   ...['activate', 'close', 'navigate', 'provider', 'media-url'].map((action) =>
     z.object({ action: z.literal(action), payload: z.string().max(4096) }),
@@ -353,6 +367,11 @@ const Command = z.discriminatedUnion('action', [
 app.whenReady().then(async () => {
   settings = await readSettings();
   const browsing = (browsingSession = session.fromPartition('nido-browsing', { cache: true }));
+  regularSession = session.fromPartition('persist:nido-browsing', { cache: true });
+  regularPrivacy = configurePrivacy(regularSession, () => settings, false, false, true);
+  sessionOnly = session.fromPartition('nido-session', { cache: true });
+  sessionPrivacy = configurePrivacy(sessionOnly, () => settings, false, false, true);
+  await sessionPrivacy.clearAll();
   temporarySession = session.fromPartition('nido-compatible', { cache: true });
   temporaryPrivacy = configurePrivacy(temporarySession, () => settings, false, true);
   await temporaryPrivacy.clearAll();
@@ -361,6 +380,8 @@ app.whenReady().then(async () => {
   await blocking.load();
   blocking.attach(browsing);
   blocking.attach(temporarySession);
+  blocking.attach(regularSession);
+  blocking.attach(sessionOnly);
   protocol.handle('nido', (request) => {
     const url = new URL(request.url);
     if (url.hostname !== 'app') return new Response('No encontrado', { status: 404 });
@@ -420,10 +441,11 @@ app.whenReady().then(async () => {
       for (const entry of tabs) if (!entry.site) entry.view?.webContents.reload();
     }
     if (
+      previous.browsingMode !== settings.browsingMode ||
       JSON.stringify(previous.compatibilitySites) !== JSON.stringify(settings.compatibilitySites)
     ) {
       for (const entry of tabs)
-        if (compatibleSite(entry.state.url, settings.compatibilitySites) !== entry.site)
+        if (browsingContext(entry.state.url, settings) !== entry.site)
           await navigateTab(entry, entry.state.url);
     }
     await sidebar.reconcile(previous);
@@ -468,6 +490,20 @@ app.whenReady().then(async () => {
       case 'reset-settings':
         await applySettings(defaults());
         break;
+      case 'clear-browsing-data': {
+        for (const entry of tabs) detachView(entry);
+        await Promise.all([
+          regularPrivacy.clearAll(),
+          sessionPrivacy.clearAll(),
+          browsingPrivacy.clearAll(),
+          temporaryPrivacy.clearAll(),
+        ]);
+        temporaryOrigins.clear();
+        for (const entry of tabs) if (!entry.state.suspended) createView(entry);
+        layout();
+        sendState();
+        return 'Cookies y datos de navegación borrados. La sesión de IA no se ha borrado.';
+      }
       case 'clear-history':
         await rm(path.join(app.getPath('userData'), 'history.json'), { force: true });
         break;
@@ -491,6 +527,7 @@ app.whenReady().then(async () => {
         await blocking.updateManually();
         return 'Listas actualizadas. Recarga las páginas.';
       case 'toggle-compatibility': {
+        if (settings.browsingMode !== 'strict') return;
         if (!tab || !isWebUrl(tab.state.url)) return;
         const site = tab.site ?? siteDomain(tab.state.url);
         const sites = tab.site
@@ -584,6 +621,8 @@ app.on('before-quit', (event) => {
   shuttingDown = true;
   browsingPrivacy?.dispose();
   temporaryPrivacy?.dispose();
+  regularPrivacy?.dispose();
+  sessionPrivacy?.dispose();
   // Destroy remote producers before clearing their storage. Keep the native
   // window alive until cleanup finishes, so child views can be detached safely.
   sidebar?.closeAll();
@@ -593,6 +632,9 @@ app.on('before-quit', (event) => {
     try {
       await browsingPrivacy?.clearAll();
       await temporaryPrivacy?.clearAll();
+      await sessionPrivacy?.clearAll();
+      regularSession?.flushStorageData();
+      await regularSession?.cookies.flushStore();
       await sidebar?.session.cookies.flushStore();
     } catch (error) {
       console.error('No se pudo completar la limpieza al cerrar', error);

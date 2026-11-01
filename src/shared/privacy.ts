@@ -109,3 +109,12 @@ export function siteDomain(url: string): string {
   const host = hostname(url);
   return getDomain(host, { allowPrivateDomains: true }) ?? host;
 }
+
+export function browsingContext(
+  url: string,
+  settings: { browsingMode: 'persistent' | 'session' | 'strict'; compatibilitySites: string[] },
+): string | undefined {
+  if (!isWebUrl(url)) return;
+  if (settings.browsingMode !== 'strict') return `@${settings.browsingMode}`;
+  return compatibleSite(url, settings.compatibilitySites);
+}

@@ -50,3 +50,12 @@ validado y solo permite almacenamiento en documentos propios de ese dominio. Los
 contextos de terceros mantienen guardas. El cierre del último contexto reúne los
 orígenes visitados por todas las pestañas de la regla antes de limpiar. La caché de
 red vive en memoria y no se invalida en las barridas estrictas periódicas.
+
+Desde 0.1.2 `browsingMode` selecciona el perfil global: `persistent` por defecto
+(`persist:nido-browsing`), `session` (`nido-session`, en memoria) o `strict` (con
+las excepciones por sitio heredadas). Los perfiles globales no cambian de sesión
+entre dominios y no se limpian al cerrar pestañas. Al salir se limpia el perfil
+`session` y se fuerzan las escrituras del perfil persistente; el control de borrado
+explícito limpia todos los perfiles de navegación sin afectar al de IA. El preload
+`regular.ts` habilita almacenamiento propio en cualquier origen web, manteniendo
+las guardas de frames de otro origen y los filtros de cookies de terceros.

@@ -31,6 +31,7 @@ export function configurePrivacy(
   getSettings: () => Settings,
   sidebar = false,
   temporary = false,
+  regular = false,
 ) {
   ses.setUserAgent(CHROME_UA);
   ses.setSpellCheckerEnabled(false);
@@ -114,7 +115,7 @@ export function configurePrivacy(
       await ses.clearAuthCache();
     });
   const timer =
-    !sidebar && !temporary
+    !sidebar && !temporary && !regular
       ? setInterval(() => {
           void sweep().catch((error) =>
             console.error('No se pudo completar la limpieza periódica', error),
@@ -130,11 +131,13 @@ export function configurePrivacy(
         type: 'frame',
         filePath: path.join(
           __dirname,
-          temporary
-            ? '../preload/temporary-site.js'
-            : getSettings().allowSessionCookies
-              ? '../preload/session-cookies.js'
-              : '../preload/cookies.js',
+          regular
+            ? '../preload/regular.js'
+            : temporary
+              ? '../preload/temporary-site.js'
+              : getSettings().allowSessionCookies
+                ? '../preload/session-cookies.js'
+                : '../preload/cookies.js',
         ),
         matches: ['http://*/*', 'https://*/*'],
         matchOriginAsFallback: true,
@@ -162,7 +165,10 @@ export function configurePrivacy(
         !compatibleSite(topUrl, getSettings().compatibilitySites))
     )
       return false;
-    return (temporary || getSettings().allowSessionCookies) && firstPartyRequest(details, topUrl);
+    return (
+      (regular || temporary || getSettings().allowSessionCookies) &&
+      firstPartyRequest(details, topUrl)
+    );
   };
   ses.webRequest.onBeforeSendHeaders((details, callback) => {
     // This Chromium-generated header identifies service-worker script loads, even
@@ -182,7 +188,7 @@ export function configurePrivacy(
     }),
   );
   ses.cookies.on('changed', (_, cookie, _cause, removed) => {
-    if (removed) return;
+    if (removed || regular) return; // Approved first-party cookies survive closed tabs in normal profiles.
     const host = (cookie.domain ?? '').replace(/^\./, '');
     const url = `${cookie.secure ? 'https' : 'http'}://${host}${cookie.path}`;
     const allowed = sidebar

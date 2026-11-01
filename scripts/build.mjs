@@ -19,6 +19,7 @@ await Promise.all([
       'src/preload/cookies.ts',
       'src/preload/session-cookies.ts',
       'src/preload/temporary-site.ts',
+      'src/preload/regular.ts',
     ],
     outdir: 'dist/preload',
     bundle: true,
