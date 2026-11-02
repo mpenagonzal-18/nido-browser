@@ -2,6 +2,7 @@ import { ElectronBlocker, fromElectronDetails, Request } from '@ghostery/adblock
 import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { app, net, webContents, type Session, type WebContents } from 'electron';
 import path from 'node:path';
+import { isYoutubePage, isYoutubeResource } from '../shared/youtube';
 import { hostname, videoExcluded, providerAllows } from '../shared/privacy';
 import { upgradeHttp } from './privacy';
 import type { Settings } from '../shared/settings';
@@ -11,6 +12,8 @@ export const LIST_SOURCES = [
 ];
 export class Blocking {
   private engine?: ElectronBlocker;
+  youtubePaused = false;
+  private preloadIds = new Map<Session, string>();
   readonly disabledSites = new Set<string>();
   constructor(
     private getSettings: () => Settings,
@@ -38,8 +41,45 @@ export class Blocking {
       loadExtendedSelectors: false,
     });
   }
+  refreshYoutube() {
+    for (const [ses, id] of this.preloadIds) {
+      if (id) ses.unregisterPreloadScript(id);
+      this.preloadIds.set(ses, '');
+    }
+    if (!this.getSettings().youtubeAutoPause) return;
+    for (const ses of this.preloadIds.keys()) {
+      const excludeMatches = this.getSettings().videoExclusions.flatMap((domain) => [
+        `http://${domain}/*`,
+        `https://${domain}/*`,
+        `http://*.${domain}/*`,
+        `https://*.${domain}/*`,
+      ]);
+      const id = ses.registerPreloadScript({
+        type: 'frame',
+        filePath: path.join(__dirname, '../preload/youtube.js'),
+        matches: [
+          'https://youtube.com/*',
+          'https://*.youtube.com/*',
+          'https://youtube-nocookie.com/*',
+          'https://*.youtube-nocookie.com/*',
+        ],
+        ...(excludeMatches.length ? { excludeMatches } : {}),
+        matchOriginAsFallback: true,
+      });
+      this.preloadIds.set(ses, id);
+    }
+  }
+  pauseYoutube(): boolean {
+    if (this.youtubePaused) return false;
+    this.youtubePaused = true;
+    return true;
+  }
+  resumeYoutube() {
+    this.youtubePaused = false;
+  }
   exempt(url: string, sidebar = false) {
     return (
+      (isYoutubeResource(url) && (!this.getSettings().youtubeAutoPause || this.youtubePaused)) ||
       videoExcluded(url, this.getSettings().videoExclusions) ||
       this.disabledSites.has(hostname(url)) ||
       (sidebar && providerAllows(url, this.getSettings().providers))
@@ -55,6 +95,10 @@ export class Blocking {
     return !blocked;
   }
   attach(ses: Session, sidebar = false) {
+    if (!sidebar) {
+      this.preloadIds.set(ses, '');
+      this.refreshYoutube();
+    }
     ses.webRequest.onBeforeRequest((details, callback) => {
       if (
         sidebar &&
@@ -72,7 +116,8 @@ export class Blocking {
         this.exempt(topUrl, sidebar);
       if (
         !exempt &&
-        details.resourceType !== 'media' &&
+        (details.resourceType !== 'media' ||
+          (this.getSettings().youtubeAutoPause && isYoutubePage(topUrl))) &&
         details.resourceType !== 'mainFrame' &&
         this.engine?.match(fromElectronDetails(details)).match
       ) {
@@ -89,6 +134,7 @@ export class Blocking {
     if (
       !this.engine ||
       this.exempt(url, sidebar) ||
+      isYoutubePage(url) || // Never hide the enforcement notice or inject YouTube scriptlets.
       !/^https?:/.test(url) ||
       contents.isDestroyed()
     )

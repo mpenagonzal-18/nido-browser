@@ -93,13 +93,30 @@ manual descarga copias oficiales desde raw.githubusercontent.com, con TLS verifi
 Se bloquean recursos de publicidad/rastreo y se aplica CSS, sin ejecutar scriptlets.
 La cosmética inicial puede no cubrir banners añadidos dinámicamente.
 
-YouTube, youtu.be, googlevideo.com, ytimg.com y youtube-nocookie.com y sus subdominios
-están excluidos por defecto antes de consultar el motor o hacer extracción de DOM,
-CSS o inyección del bloqueador, incluidas sus peticiones a terceros. La lista es
-editable. Las guardas de privacidad no son parte del bloqueador y siguen vigentes.
-El tipo de recurso `media` tampoco se bloquea en otros sitios, pero no es posible
-separar perfectamente todos los scripts publicitarios de vídeo y banners. El
-contador por pestaña solo cuenta bloqueos de red y no persiste.
+Desde 0.1.3 se filtran peticiones publicitarias de YouTube por defecto. Un preload
+con sandbox, sin API expuesta a la página, observa únicamente superficies conocidas
+de avisos/reproductor y comprueba texto y visibilidad. No lee ni envía conversaciones,
+no oculta avisos ni ejecuta scriptlets. El proceso principal valida el mensaje IPC,
+el esquema, la vista propietaria y el frame principal del dominio de YouTube.
+
+Al detectar el aviso de antibloqueo, se omite por completo el motor para páginas y
+recursos de youtube.com, youtu.be, googlevideo.com, ytimg.com y youtube-nocookie.com,
+incluidos recursos de terceros iniciados por esas páginas. La pausa solo vive en
+memoria durante esa ejecución. Se recarga una vez la pestaña afectada y se intenta
+restaurar su posición; la recarga es una petición automática derivada de la página
+abierta por el usuario. No borra datos ni modifica los permisos de cookies. El usuario
+puede reactivar el bloqueo desde la barra. No se garantiza detectar cambios futuros
+del aviso ni eliminar todos los anuncios; no se ha validado contra YouTube en vivo.
+
+Desactivar esta opción excluye YouTube completamente y no instala su detector.
+Las exclusiones manuales siempre prevalecen. La actualización migra solo la lista
+predeterminada antigua de cinco dominios a la nueva opción; conserva exclusiones
+personalizadas. No hay cosmética en YouTube. El tipo `media` no se bloquea en otros
+sitios, pero no es posible separar perfectamente scripts de banners y vídeo.
+El contador solo cuenta bloqueos de red y no persiste.
+
+El idioma de Nido se guarda localmente, sin peticiones de traducción. Cambiarlo no
+modifica el idioma, cookies ni almacenamiento de las páginas visitadas.
 
 ## Sidebar de IA
 

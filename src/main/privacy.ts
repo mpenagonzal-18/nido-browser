@@ -1,3 +1,4 @@
+import { resolveLocale, translate } from '../shared/i18n';
 import { app, dialog, type Session, type WebContents, webContents } from 'electron';
 import { isWebUrl } from '../shared/navigation';
 import path from 'node:path';
@@ -33,6 +34,8 @@ export function configurePrivacy(
   temporary = false,
   regular = false,
 ) {
+  const tr = (source: string, values: Record<string, string | number> = {}) =>
+    translate(source, resolveLocale(getSettings().language, app.getLocale()), values);
   ses.setUserAgent(CHROME_UA);
   ses.setSpellCheckerEnabled(false);
   const permissions = new Set<string>();
@@ -59,11 +62,18 @@ export function configurePrivacy(
     void dialog
       .showMessageBox({
         type: 'question',
-        title: 'Permiso por sitio',
-        message: `${new URL(origin).origin} solicita ${permission === 'media' ? media.join(', ') : permission}.`,
-        detail:
+        title: tr('Permiso por sitio'),
+        message: tr('{origin} solicita {permission}.', {
+          origin: new URL(origin).origin,
+          permission:
+            permission === 'media'
+              ? media.map((type) => tr(type === 'audio' ? 'micrófono' : 'cámara')).join(', ')
+              : tr(permission === 'geolocation' ? 'ubicación' : 'notificaciones'),
+        }),
+        detail: tr(
           'Solo se permite tras esta confirmación. La autorización dura esta ejecución y no se guarda en disco.',
-        buttons: ['Denegar', 'Permitir esta vez'],
+        ),
+        buttons: [tr('Denegar'), tr('Permitir esta vez')],
         defaultId: 0,
         cancelId: 0,
       })

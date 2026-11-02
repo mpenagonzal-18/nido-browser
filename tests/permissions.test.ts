@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 vi.mock('electron', () => ({
-  app: {},
+  app: { getLocale: () => 'es' },
   dialog: { showMessageBox: vi.fn(async () => ({ response: 1 })) },
 }));
 import { configurePrivacy } from '../src/main/privacy';

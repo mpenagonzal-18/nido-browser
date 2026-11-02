@@ -1,3 +1,4 @@
+import type { Locale } from './i18n';
 import type { Settings } from './settings';
 export interface TabState {
   id: string;
@@ -17,6 +18,8 @@ export interface State {
   version: string;
   blockingDisabled: boolean;
   compatible: boolean;
+  locale: Locale;
+  youtubePaused: boolean;
 }
 export interface Bridge {
   call(action: string, payload?: unknown): Promise<unknown>;

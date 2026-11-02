@@ -71,3 +71,19 @@ los filtros de terceros y la seguridad de las vistas. Lint, TypeScript y 60 prue
 unitarias correctos, además de la integración de tres arranques. El test de iframe
 espera al estado habilitado del control y limita la espera de mensajes para no
 depender del orden de entrega del IPC ni bloquear indefinidamente el runner.
+
+## Revisión de 0.1.3
+
+La solicitud actual sustituye la exclusión predeterminada de YouTube por filtrado
+con pausa automática. Solo el preload propio de pestañas puede avisar: no se expone
+IPC al sitio y el main valida dominio, frame, emisor y esquema Zod. El detector no
+usa texto arbitrario de la página ni avisa más de una vez; la pausa precede a la
+recarga y se conserva en memoria. No se inyectan CSS ni scriptlets en YouTube.
+Las exclusiones manuales prevalecen; desactivar la opción excluye YouTube entero.
+
+Se conserva el perfil persistente y la sesión de IA aislada. El idioma solo modifica
+la UI local. No se añaden dependencias, peticiones de traducción ni telemetría.
+74 pruebas unitarias, lint, tipos e integración real de tres arranques correctos.
+La fixture HTTPS local también ejercita el preload/IPC de producción y prueba una
+única recarga sin borrar login. No se validó YouTube en vivo; no se promete bloquear
+todos sus anuncios. Bundle renderer: 26.400 bytes, 9.161 gzip; CSS: 8.781 bytes.

@@ -1,3 +1,6 @@
+import { resolveLocale, translate } from '../shared/i18n';
+import { isYoutubePage } from '../shared/youtube';
+import { handleYoutubeNotice } from './youtube';
 import { chooseFiles, mediaUrl, serveMedia, exportSettings, importSettings } from './local-files';
 import { Sidebar } from './sidebar';
 import { Blocking } from './blocking';
@@ -34,6 +37,13 @@ app.setName(APP_NAME);
 chromiumPrivacy();
 let win: BrowserWindow;
 let settings = defaults();
+const locale = () => resolveLocale(settings.language, app.getLocale());
+const tr = (source: string) => translate(source, locale());
+function youtubeState() {
+  for (const tab of tabs)
+    if (tab.view && isYoutubePage(tab.state.url))
+      tab.view.webContents.send('nido:youtube-state', { paused: blocking.youtubePaused });
+}
 type Tab = {
   state: TabState;
   view?: WebContentsView;
@@ -87,14 +97,18 @@ function current() {
 function sendState() {
   if (!win || win.isDestroyed()) return;
   const state: State = {
-    tabs: tabs.map((t) => t.state),
+    tabs: tabs.map((t) =>
+      t.state.url === 'nido://app/newtab' ? { ...t.state, title: tr('Nueva pestaña') } : t.state,
+    ),
     active,
     sidebar: sidebar?.visible ?? false,
     provider: sidebar?.selected ?? '',
     settings,
+    locale: locale(),
+    youtubePaused: blocking.youtubePaused,
     version: app.getVersion(),
     compatible: !!current()?.site,
-    blockingDisabled: blocking.disabledSites.has(hostname(current()?.state.url ?? '')),
+    blockingDisabled: blocking.exempt(current()?.state.url ?? ''),
   };
   win.webContents.send('nido:state', state);
 }
@@ -169,12 +183,12 @@ function createView(tab: Tab) {
   view.webContents.on('context-menu', (_, params) => {
     Menu.buildFromTemplate([
       {
-        label: 'Copiar texto seleccionado para la IA',
+        label: tr('Copiar texto seleccionado para la IA'),
         enabled: Boolean(params.selectionText),
         click: () => clipboard.writeText(params.selectionText),
       },
       {
-        label: 'Copiar URL de la página actual',
+        label: tr('Copiar URL de la página actual'),
         click: () => clipboard.writeText(view.webContents.getURL()),
       },
     ]).popup({ window: win });
@@ -198,7 +212,11 @@ function createView(tab: Tab) {
   };
   view.webContents.on('will-navigate', navigation);
   view.webContents.on('will-redirect', navigation);
-  view.webContents.on('did-finish-load', () => void blocking.cosmetic(view.webContents));
+  view.webContents.on('did-finish-load', () => {
+    void blocking.cosmetic(view.webContents);
+    if (isYoutubePage(view.webContents.getURL()))
+      view.webContents.send('nido:youtube-state', { paused: blocking.youtubePaused });
+  });
   view.webContents.on('page-title-updated', (_, title) => {
     tab.state.title = title;
     sendState();
@@ -219,7 +237,7 @@ function createView(tab: Tab) {
   });
   void view.webContents.loadURL(tab.state.url).catch(() => {
     if (tab.view !== view || view.webContents.isDestroyed()) return;
-    tab.state.title = 'No se pudo cargar';
+    tab.state.title = tr('No se pudo cargar');
     sendState();
   });
 }
@@ -227,7 +245,7 @@ function openTab(url = 'nido://app/newtab') {
   const tab: Tab = {
     state: {
       id: crypto.randomUUID(),
-      title: url.startsWith('nido:') ? 'Nueva pestaña' : 'Cargando…',
+      title: tr(url.startsWith('nido:') ? 'Nueva pestaña' : 'Cargando…'),
       url,
       suspended: false,
       blocked: 0,
@@ -284,7 +302,7 @@ async function navigateTab(tab: Tab, url: string) {
   tab.state.url = url;
   if (url.startsWith('nido:')) {
     detachView(tab);
-    tab.state.title = 'Nueva pestaña';
+    tab.state.title = tr('Nueva pestaña');
     tab.state.canBack = false;
     tab.state.canForward = false;
   } else if (!tab.view) {
@@ -448,20 +466,42 @@ app.whenReady().then(async () => {
         if (browsingContext(entry.state.url, settings) !== entry.site)
           await navigateTab(entry, entry.state.url);
     }
+    if (
+      previous.youtubeAutoPause !== settings.youtubeAutoPause ||
+      JSON.stringify(previous.videoExclusions) !== JSON.stringify(settings.videoExclusions)
+    ) {
+      if (!settings.youtubeAutoPause) blocking.resumeYoutube();
+      blocking.refreshYoutube();
+      for (const entry of tabs)
+        if (entry.view && isYoutubePage(entry.state.url)) entry.view.webContents.reload();
+    }
     await sidebar.reconcile(previous);
     layout();
     sendState();
   }
+  ipcMain.on('nido:youtube-warning', (event, raw) => {
+    handleYoutubeNotice(
+      blocking,
+      settings,
+      event,
+      raw,
+      (contents) => tabs.some((tab) => tab.view?.webContents === contents),
+      () => {
+        youtubeState();
+        sendState();
+      },
+    );
+  });
   ipcMain.handle('nido:command', async (event, raw) => {
     if (event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame)
-      throw new Error('IPC no autorizado');
+      throw new Error(tr('IPC no autorizado'));
     const command = Command.parse(raw);
     const tab = current();
     switch (command.action) {
       case 'media-url':
         return mediaUrl(command.payload as string, settings);
       case 'choose-music': {
-        const files = await chooseFiles(win, 'music');
+        const files = await chooseFiles(win, 'music', locale());
         if (files.length) {
           settings.music.paths = files;
           await saveSettings(settings);
@@ -470,7 +510,7 @@ app.whenReady().then(async () => {
         return files;
       }
       case 'choose-wallpaper': {
-        const files = await chooseFiles(win, 'wallpaper');
+        const files = await chooseFiles(win, 'wallpaper', locale());
         if (files[0]) {
           settings.wallpaper.image = files[0];
           settings.wallpaper.kind = 'image';
@@ -483,7 +523,7 @@ app.whenReady().then(async () => {
         await exportSettings(win, settings);
         break;
       case 'import-settings': {
-        const imported = await importSettings(win);
+        const imported = await importSettings(win, locale());
         if (imported) await applySettings(imported);
         break;
       }
@@ -502,7 +542,7 @@ app.whenReady().then(async () => {
         for (const entry of tabs) if (!entry.state.suspended) createView(entry);
         layout();
         sendState();
-        return 'Cookies y datos de navegación borrados. La sesión de IA no se ha borrado.';
+        return tr('Cookies y datos de navegación borrados. La sesión de IA no se ha borrado.');
       }
       case 'clear-history':
         await rm(path.join(app.getPath('userData'), 'history.json'), { force: true });
@@ -515,7 +555,7 @@ app.whenReady().then(async () => {
         break;
       case 'clear-ai':
         await sidebar.clear();
-        return 'Datos de IA borrados';
+        return tr('Datos de IA borrados');
       case 'overlay':
         overlay = command.payload as boolean;
         layout();
@@ -525,7 +565,7 @@ app.whenReady().then(async () => {
         break;
       case 'update-lists':
         await blocking.updateManually();
-        return 'Listas actualizadas. Recarga las páginas.';
+        return tr('Listas actualizadas. Recarga las páginas.');
       case 'toggle-compatibility': {
         if (settings.browsingMode !== 'strict') return;
         if (!tab || !isWebUrl(tab.state.url)) return;
@@ -537,6 +577,19 @@ app.whenReady().then(async () => {
         break;
       }
       case 'toggle-blocking': {
+        if (
+          tab &&
+          isYoutubePage(tab.state.url) &&
+          (blocking.youtubePaused || !settings.youtubeAutoPause)
+        ) {
+          blocking.resumeYoutube();
+          if (!settings.youtubeAutoPause)
+            await applySettings({ ...settings, youtubeAutoPause: true });
+          else tab.view?.webContents.reload();
+          youtubeState();
+          sendState();
+          break;
+        }
         const host = hostname(tab?.state.url ?? '');
         if (host) {
           if (blocking.disabledSites.has(host)) blocking.disabledSites.delete(host);

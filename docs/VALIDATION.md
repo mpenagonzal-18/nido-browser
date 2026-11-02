@@ -54,11 +54,12 @@ preparados; solo una ejecución en GitHub establece su resultado remoto.
 5. Abrir asistentes reales con cuentas de prueba: documentar OAuth/CAPTCHA fallidos
    sin copiar cookies. Ocultar, cambiar, redimensionar a ambos lados y reiniciar.
    Confirmar el prompt de micrófono y que no existe envío automático de contenido.
-6. Inspeccionar YouTube: exclusiones activas, cero operaciones del bloqueador.
-   Algunas funciones no operarán mientras se bloqueen las cookies de navegación.
-7. Activar cookies temporales y verificar que desaparecen tras cerrar. Revisar que
-   no existe una partición persistente de navegación. Eliminar datos IA y comprobar
-   que el resto del navegador no cambia de sesión.
+6. Inspeccionar YouTube: comprobar filtrado de red, pausa al aparecer el aviso,
+   una sola recarga y reactivación manual. Con exclusión manual u opción desactivada,
+   comprobar que no se consulta el motor ni se instala el detector.
+7. Probar los tres perfiles: el normal conserva sesiones al reiniciar; Borrar al
+   salir y Estricto usan memoria. Eliminar datos IA y comprobar que el resto del
+   navegador no cambia de sesión.
 8. Revisar tráfico con herramientas del sistema sin publicar cookies ni cabeceras
    sensibles. Separar red propia de Chromium y red iniciada por las webs abiertas.
 
@@ -121,3 +122,18 @@ sin afectar a la IA. El tercer proceso verifica que el borrado fue duradero.
 
 Las cookies del fixture de login tienen Max-Age explícito: no se alteran ni garantizan
 las caducidades del servidor. Vitest: 60 pruebas. No se probaron cuentas reales externas.
+
+## Idiomas y YouTube (0.1.3)
+
+74 pruebas unitarias correctas, lint y TypeScript. El runner Electron prueba
+Español → English en vivo, `html.lang`, persistencia en el segundo proceso y que el
+cambio no elimina el login. El detector se prueba en DOM real: ignora texto fuera
+de avisos y avisos ocultos, detecta el aviso visible una vez y detiene la observación.
+
+Además, `session.protocol.handle('https')` sirve una fixture local bajo la URL de
+YouTube solo durante el test, sin tráfico al servicio. La pestaña usa el preload
+sandboxed de producción y su IPC real: el proceso principal activa la pausa, la
+página carga exactamente dos veces (inicial + recarga) y conserva las cookies. Esta
+prueba no sustituye comprobar anuncios, reproductor y avisos de YouTube en vivo.
+Las pruebas unitarias cubren rechazo de iframes, emisores ajenos y payloads inválidos,
+prioridad de exclusiones, pausa/reanudación y migración de ajustes antiguos.

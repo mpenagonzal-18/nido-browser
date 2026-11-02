@@ -1,3 +1,4 @@
+import { resolveLocale, translate } from '../shared/i18n';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { WebContentsView, session, type BrowserWindow, clipboard, Menu, app } from 'electron';
@@ -114,12 +115,18 @@ export class Sidebar {
       view.webContents.on('context-menu', (_, params) => {
         Menu.buildFromTemplate([
           {
-            label: 'Copiar texto seleccionado para la IA',
+            label: translate(
+              'Copiar texto seleccionado para la IA',
+              resolveLocale(this.settings().language, app.getLocale()),
+            ),
             enabled: Boolean(params.selectionText),
             click: () => clipboard.writeText(params.selectionText),
           },
           {
-            label: 'Copiar URL de la página actual',
+            label: translate(
+              'Copiar URL de la página actual',
+              resolveLocale(this.settings().language, app.getLocale()),
+            ),
             click: () => clipboard.writeText(view.webContents.getURL()),
           },
         ]).popup({ window: this.win });

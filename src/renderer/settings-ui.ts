@@ -1,3 +1,4 @@
+import { translate, OPTION_NAMES, type Locale } from '../shared/i18n';
 import type { Settings } from '../shared/settings';
 import { applyAppearance } from './newtab/appearance';
 export function renderSettings(
@@ -5,18 +6,21 @@ export function renderSettings(
   initial: Settings,
   save: (settings: Settings) => void,
   action: (name: string) => void,
+  locale: Locale = 'es',
 ) {
   const s = structuredClone(initial);
+  const tr = (source: string, values: Record<string, string | number> = {}) =>
+    translate(source, locale, values);
   root.replaceChildren();
   const group = (title: string, note?: string) => {
     const el = document.createElement('section');
     el.className = 'group';
     const h = document.createElement('h3');
-    h.textContent = title;
+    h.textContent = tr(title);
     el.append(h);
     if (note) {
       const p = document.createElement('p');
-      p.textContent = note;
+      p.textContent = tr(note);
       el.append(p);
     }
     root.append(el);
@@ -49,7 +53,7 @@ export function renderSettings(
     const label = document.createElement('label');
     label.className = 'field';
     const text = document.createElement('span');
-    text.textContent = name;
+    text.textContent = tr(name);
     const input = options ? document.createElement('select') : document.createElement('input');
     if (input instanceof HTMLInputElement) {
       input.type = type;
@@ -68,7 +72,7 @@ export function renderSettings(
       for (const option of options) {
         const el = document.createElement('option');
         el.value = option;
-        el.textContent = option;
+        el.textContent = tr(OPTION_NAMES[option] ?? option);
         input.append(el);
       }
     input.value = String(value);
@@ -93,13 +97,19 @@ export function renderSettings(
   const button = (parent: HTMLElement, label: string, fn: () => void) => {
     const el = document.createElement('button');
     el.className = 'primary';
-    el.textContent = label;
+    el.textContent = tr(label);
     el.onclick = fn;
     parent.append(el);
   };
+  const languages = group('Idioma de la interfaz');
+  field(languages, 'Idioma', s.language, (v) => (s.language = v as Settings['language']), 'text', [
+    'system',
+    'es',
+    'en',
+  ]);
   const appearance = group('Color y fondo');
   preview.className = 'appearance-preview';
-  preview.textContent = 'Un poco de calma. Un mundo por descubrir.';
+  preview.textContent = tr('Un poco de calma. Un mundo por descubrir.');
   appearance.append(preview);
   paintPreview();
   field(appearance, 'Acento', s.accent, (v) => (s.accent = v), 'color');
@@ -155,7 +165,7 @@ export function renderSettings(
     strict: 'Privacidad estricta',
   };
   for (const option of mode.options)
-    option.textContent = labels[option.value as keyof typeof labels];
+    option.textContent = tr(labels[option.value as keyof typeof labels]);
   const note = document.createElement('p');
   note.textContent =
     s.browsingMode === 'persistent'
@@ -163,6 +173,7 @@ export function renderSettings(
       : s.browsingMode === 'session'
         ? 'Permite cookies propias y datos en todas las páginas hasta cerrar Nido. No borra automáticamente los datos de un perfil permanente usado antes.'
         : 'Deniega almacenamiento y cookies en el perfil estricto. Los datos del perfil permanente anterior solo se eliminan con el botón de borrado.';
+  note.textContent = tr(note.textContent ?? '');
   navigation.append(note);
   button(navigation, 'Borrar cookies y datos de sitios (cierra sesiones)', () =>
     action('clear-browsing-data'),
@@ -240,7 +251,7 @@ export function renderSettings(
       for (const key of ['name', 'url', 'icon'] as const) {
         const input = document.createElement('input');
         input.value = p[key];
-        input.placeholder = key;
+        input.placeholder = tr(key === 'name' ? 'nombre' : key === 'icon' ? 'icono' : 'URL');
         input.setAttribute('aria-label', `${p.name}: ${key}`);
         input.onchange = () => {
           p[key] = input.value;
@@ -254,7 +265,7 @@ export function renderSettings(
       ] as const) {
         const b = document.createElement('button');
         b.textContent = label;
-        b.title = 'Reordenar proveedor';
+        b.title = tr('Reordenar proveedor');
         b.disabled = i + move < 0 || i + move >= s.providers.length;
         b.onclick = () => {
           [s.providers[i], s.providers[i + move]] = [s.providers[i + move], s.providers[i]];
@@ -265,7 +276,7 @@ export function renderSettings(
       }
       const remove = document.createElement('button');
       remove.textContent = '×';
-      remove.setAttribute('aria-label', `Quitar ${p.name}`);
+      remove.setAttribute('aria-label', tr('Quitar {name}', { name: p.name }));
       remove.onclick = () => {
         s.providers.splice(i, 1);
         commit();
@@ -279,7 +290,7 @@ export function renderSettings(
   button(ai, 'Añadir proveedor', () => {
     s.providers.push({
       id: crypto.randomUUID(),
-      name: 'Asistente local',
+      name: tr('Asistente local'),
       url: 'http://localhost:3000',
       icon: '◈',
     });
@@ -291,6 +302,18 @@ export function renderSettings(
     'Bloqueo de banners',
     'EasyList + EasyPrivacy locales. No se descargan listas al arrancar. Las exclusiones evitan cualquier consulta al motor y cualquier inyección del bloqueador en esos dominios.',
   );
+  field(
+    block,
+    'YouTube: pausar al detectar el aviso antibloqueadores',
+    s.youtubeAutoPause,
+    (v) => (s.youtubeAutoPause = v === 'true'),
+    'checkbox',
+  );
+  const youtubeNote = document.createElement('p');
+  youtubeNote.textContent = tr(
+    'El bloqueo de YouTube se pausa para esta ejecución si aparece su aviso. Puede requerir una recarga automática; se intenta conservar la posición. Las exclusiones manuales prevalecen.',
+  );
+  block.append(youtubeNote);
   field(
     block,
     'Exclusiones de vídeo (separadas por comas)',

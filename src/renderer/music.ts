@@ -1,16 +1,20 @@
+import { translate, type Locale } from '../shared/i18n';
 import type { Settings } from '../shared/settings';
 export function musicPlayer(save: (settings: Settings) => void) {
   const root = document.getElementById('music-controls')!;
   const audio = document.getElementById('audio') as HTMLAudioElement;
   let settings: Settings;
+  let locale: Locale = 'es';
+  const titles = new Map<HTMLElement, string>();
   let index = 0;
   let loaded = '';
   let generation = 0;
   const button = (text: string, title: string, action: () => void) => {
     const el = document.createElement('button');
     el.textContent = text;
-    el.title = title;
-    el.setAttribute('aria-label', title);
+    titles.set(el, title);
+    el.title = translate(title, locale);
+    el.setAttribute('aria-label', translate(title, locale));
     el.onclick = action;
     root.append(el);
     return el;
@@ -33,6 +37,7 @@ export function musicPlayer(save: (settings: Settings) => void) {
   volume.min = '0';
   volume.max = '1';
   volume.step = '.01';
+  titles.set(volume, 'Volumen');
   volume.title = 'Volumen';
   volume.setAttribute('aria-label', 'Volumen');
   root.append(volume);
@@ -65,7 +70,10 @@ export function musicPlayer(save: (settings: Settings) => void) {
       }
       await audio.play();
     } catch {
-      play.title = 'No se pudo reproducir. Comprueba que el archivo existe y su formato.';
+      play.title = translate(
+        'No se pudo reproducir. Comprueba que el archivo existe y su formato.',
+        locale,
+      );
     }
   }
   async function skip(delta: number) {
@@ -91,7 +99,12 @@ export function musicPlayer(save: (settings: Settings) => void) {
       play.textContent = '▷';
     }
   };
-  return (next: Settings) => {
+  return (next: Settings, nextLocale: Locale = 'es') => {
+    locale = nextLocale;
+    for (const [element, title] of titles) {
+      element.title = translate(title, locale);
+      element.setAttribute('aria-label', translate(title, locale));
+    }
     const changed =
       settings && JSON.stringify(settings.music.paths) !== JSON.stringify(next.music.paths);
     settings = structuredClone(next);

@@ -1,20 +1,18 @@
-Nido 0.1.2: cookies propias activadas globalmente y sesiones conservadas entre reinicios.
+Nido 0.1.3: idiomas y pausa automática del bloqueo en YouTube.
 
-- Ya no es necesario activar Temporal en cada sitio: las cookies propias y el
-  almacenamiento se permiten en todas las páginas de forma predeterminada.
-- Cerrar pestañas o navegar a otro sitio no borra el login. Las cookies persistentes
-  y el almacenamiento se conservan al cerrar y volver a abrir Nido, según la
-  caducidad que imponga cada web.
-- Cookies de terceros bloqueadas; la sidebar de IA continúa aislada.
-- Ajustes globales: Conservar entre reinicios, Borrar al salir o Privacidad estricta.
-- Botón para borrar cookies y datos de sitios sin borrar los datos de los asistentes.
+- Español, English y Del sistema en ajustes, con cambio inmediato y persistencia local.
+- Detección de avisos visibles de antibloqueo de YouTube: pausa durante esa ejecución,
+  una recarga de la pestaña afectada e intento de conservar la posición del vídeo.
+- Indicador PAUSA y reactivación manual desde la barra; exclusiones manuales prioritarias.
+- Sin cosmética ni scriptlets en YouTube. Desactivar la opción lo excluye completamente.
+- Repositorio renombrado a mpenagonzal-18/nido-browser.
 
-**Cambio de privacidad:** el modo normal guarda cookies, datos de las webs y caché
-localmente en disco. Sustituye al borrado automático por defecto de 0.1.0/0.1.1.
-Cambiar a otro modo no elimina los datos permanentes existentes: usa el botón de
-borrado si quieres eliminarlos. No hay telemetría ni sincronización con Nido.
+**Cambio respecto a 0.1.2:** YouTube ya no se excluye por defecto; ahora se filtra su
+red y se pausa si aparece el aviso reconocido. Se migra únicamente la lista antigua
+predeterminada, preservando exclusiones personalizadas. No garantiza eliminar todos
+los anuncios ni detectar cambios futuros del servicio. Se probó el detector con DOM
+real y avisos locales representativos, no contra YouTube en vivo.
 
-Se verificaron login local, cierre de pestañas, cambio de dominio, reinicio real,
-restauración de almacenamiento, bloqueo de terceros y borrado manual. Los servicios
-pueden caducar sesiones o bloquear Electron; no se promete evitar CAPTCHA u OAuth.
-Instaladores sin firmar ni notarizar. Consulta docs/PRIVACY.md.
+Las cookies y sesiones permanentes siguen activadas por defecto y no se borran al
+cambiar idioma ni al pausar el bloqueador. Sin telemetría, actualizaciones automáticas
+ni servicios de traducción. Instaladores sin firmar ni notarizar.

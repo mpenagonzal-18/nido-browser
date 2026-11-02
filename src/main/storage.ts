@@ -1,10 +1,10 @@
 import { app } from 'electron';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { defaults, SettingsSchema, type Settings } from '../shared/settings';
+import { defaults, parseSettings, type Settings } from '../shared/settings';
 export async function readSettings(): Promise<Settings> {
   try {
-    return SettingsSchema.parse(
+    return parseSettings(
       JSON.parse(await readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8')),
     );
   } catch {

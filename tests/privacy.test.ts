@@ -11,6 +11,7 @@ import {
   videoExcluded,
   upgradeHttp,
 } from '../src/shared/privacy';
+import { YOUTUBE_DOMAINS } from '../src/shared/youtube';
 import { defaults } from '../src/shared/settings';
 describe('cabeceras y cookies', () => {
   it('elimina cookies sin distinguir mayúsculas y reduce Referer al origen', () => {
@@ -31,7 +32,7 @@ describe('cabeceras y cookies', () => {
   });
 });
 describe('dominios de vídeo', () => {
-  const domains = defaults().videoExclusions;
+  const domains = YOUTUBE_DOMAINS;
   it.each([
     'youtube.com',
     'www.youtube.com',

@@ -46,8 +46,9 @@
         ><button id="settings-toggle" aria-label="Ajustes">⚙</button>
       </div>
       <div class="statusbar">
-        <span>ESPACIO PERSONAL</span
+        <span id="space-label">ESPACIO PERSONAL</span
         ><span id="privacy-status">Sesión efímera · Sin cookies · Sin telemetría</span
+        ><span id="youtube-status" hidden></span
         ><span id="http-warning" hidden>⚠ Conexión HTTP sin cifrar</span>
       </div>
     </header>
@@ -55,7 +56,11 @@
       <div id="wallpaper"></div>
       <div class="welcome">
         <p class="eyebrow" id="greeting">TU RINCÓN EN INTERNET</p>
-        <h1>Un poco de calma.<br /><em>Un mundo por descubrir.</em></h1>
+        <h1>
+          <span id="welcome-title">Un poco de calma.</span><br /><em id="welcome-subtitle"
+            >Un mundo por descubrir.</em
+          >
+        </h1>
         <form id="search-form">
           <span>⌕</span
           ><input
@@ -69,9 +74,9 @@
           ><button data-url="https://wikipedia.org">W <span>Wikipedia</span></button
           ><button data-url="https://github.com">⌘ <span>GitHub</span></button>
         </div>
-        <p class="footnote">Tu navegador. Tu ritmo. Tu espacio.</p>
+        <p class="footnote" id="tagline">Tu navegador. Tu ritmo. Tu espacio.</p>
       </div>
-      <span class="newtab-bottom">◒ Hecho para quedarte a gusto.</span>
+      <span class="newtab-bottom" id="page-caption">◒ Hecho para quedarte a gusto.</span>
     </main>
     <aside id="sidebar-ui" hidden>
       <div id="provider-bar"></div>
@@ -80,8 +85,8 @@
     <section id="settings" hidden aria-label="Ajustes">
       <div class="settings-heading">
         <div>
-          <p class="eyebrow">A TU MANERA</p>
-          <h2>Ajustes</h2>
+          <p class="eyebrow" id="settings-kicker">A TU MANERA</p>
+          <h2 id="settings-title">Ajustes</h2>
         </div>
         <button id="settings-close" aria-label="Cerrar ajustes">×</button>
       </div>

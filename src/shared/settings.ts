@@ -1,3 +1,4 @@
+import { YOUTUBE_DOMAINS } from './youtube';
 import { z } from 'zod';
 import { DEFAULT_PROVIDERS } from './config';
 const webUrl = z
@@ -11,6 +12,8 @@ const webUrl = z
     }
   });
 export const SettingsSchema = z.object({
+  language: z.enum(['es', 'en', 'system']).default('es'),
+  youtubeAutoPause: z.boolean().default(true),
   accent: z
     .string()
     .regex(/^#[\da-f]{6}$/i)
@@ -44,7 +47,7 @@ export const SettingsSchema = z.object({
   videoExclusions: z
     .array(z.string().regex(/^(?:[a-z0-9-]+\.)*[a-z0-9-]+$/i))
     .max(100)
-    .default(['youtube.com', 'youtu.be', 'googlevideo.com', 'ytimg.com', 'youtube-nocookie.com']),
+    .default([]),
   wallpaper: z
     .object({
       kind: z.enum(['gradient', 'solid', 'image']).default('gradient'),
@@ -70,4 +73,19 @@ export const SettingsSchema = z.object({
 export type Settings = z.infer<typeof SettingsSchema>;
 export function defaults(): Settings {
   return SettingsSchema.parse({});
+}
+
+export function parseSettings(value: unknown): Settings {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const raw = value as Record<string, unknown>;
+    const exclusions = raw.videoExclusions;
+    if (
+      raw.youtubeAutoPause === undefined &&
+      Array.isArray(exclusions) &&
+      exclusions.length === YOUTUBE_DOMAINS.length &&
+      YOUTUBE_DOMAINS.every((domain) => exclusions.includes(domain))
+    )
+      return SettingsSchema.parse({ ...raw, videoExclusions: [] });
+  }
+  return SettingsSchema.parse(value);
 }

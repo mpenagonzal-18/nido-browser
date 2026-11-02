@@ -507,3 +507,12 @@ html[data-theme='light'] #wallpaper {
   color: var(--accent);
   white-space: nowrap;
 }
+#youtube-status {
+  color: var(--accent);
+  letter-spacing: 0;
+  font-size: 10px;
+  max-width: 330px;
+}
+html[lang='en'] .statusbar {
+  letter-spacing: 0.5px;
+}

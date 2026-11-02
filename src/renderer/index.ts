@@ -1,3 +1,6 @@
+import { translate } from '../shared/i18n';
+import { isYoutubePage } from '../shared/youtube';
+import { applyLanguage } from './language';
 import { addressSelection } from './address';
 import { applyAppearance } from './newtab/appearance';
 import { musicPlayer } from './music';
@@ -6,6 +9,8 @@ import { APP_NAME } from '../shared/config';
 import type { State } from '../shared/types';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 let state: State;
+const tr = (source: string, values: Record<string, string | number> = {}) =>
+  translate(source, state?.locale ?? 'es', values);
 const call = (action: string, payload?: unknown) =>
   window.nido.call(action, payload).catch((error) => toast(String(error)));
 function toast(message: string) {
@@ -47,6 +52,7 @@ function drawSettings() {
         if (typeof result === 'string') toast(result);
       });
     },
+    state.locale,
   );
   if (focused >= 0)
     $('settings-body').querySelectorAll<HTMLElement>('input,select')[focused]?.focus();
@@ -75,26 +81,38 @@ window.nido.onState((next) => {
 });
 function render() {
   void applyAppearance(state.settings);
-  updateMusic(state.settings);
+  applyLanguage(state.locale);
+  updateMusic(state.settings, state.locale);
   const globalMode = state.settings.browsingMode !== 'strict';
   $('privacy-toggle').textContent = globalMode
-    ? 'Cookies activadas'
+    ? tr('Cookies activadas')
     : state.compatible
-      ? 'Temporal'
-      : 'Estricto';
+      ? tr('Temporal')
+      : tr('Estricto');
   $<HTMLButtonElement>('privacy-toggle').disabled = !state.tabs
     .find((tab) => tab.id === state.active)
     ?.url.startsWith('http');
   $('privacy-toggle').title = globalMode
-    ? 'Cookies propias activadas en todas las páginas. Gestionar datos en ajustes.'
+    ? tr('Cookies propias activadas en todas las páginas. Gestionar datos en ajustes.')
     : state.compatible
-      ? 'Volver al modo estricto y borrar los datos temporales del sitio'
-      : 'Permitir cookies propias y almacenamiento temporal para este sitio';
-  $('privacy-status').textContent = globalMode
-    ? `${state.settings.browsingMode === 'persistent' ? 'Sesiones guardadas en este equipo' : 'Datos hasta cerrar Nido'} · Cookies de terceros bloqueadas · Sin telemetría`
+      ? tr('Volver al modo estricto y borrar los datos temporales del sitio')
+      : tr('Permitir cookies propias y almacenamiento temporal para este sitio');
+  const privacy = globalMode
+    ? [
+        state.settings.browsingMode === 'persistent'
+          ? 'Sesiones guardadas en este equipo'
+          : 'Datos hasta cerrar Nido',
+        'Cookies de terceros bloqueadas',
+        'Sin telemetría',
+      ]
     : state.compatible
-      ? 'Compatibilidad temporal · Cookies de terceros bloqueadas · Sin telemetría'
-      : `Sesión efímera · ${state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies'} · Sin telemetría`;
+      ? ['Compatibilidad temporal', 'Cookies de terceros bloqueadas', 'Sin telemetría']
+      : [
+          'Sesión efímera',
+          state.settings.allowSessionCookies ? 'Cookies propias temporales' : 'Sin cookies',
+          'Sin telemetría',
+        ];
+  $('privacy-status').textContent = privacy.map((value) => tr(value)).join(' · ');
   const signature = JSON.stringify(state.settings);
   if (settingsOpen && signature !== settingsSignature) drawSettings();
   settingsSignature = signature;
@@ -112,7 +130,7 @@ function render() {
       const close = document.createElement('button');
       close.className = 'tab-close';
       close.textContent = '×';
-      close.setAttribute('aria-label', `Cerrar ${t.title}`);
+      close.setAttribute('aria-label', tr('Cerrar {title}', { title: t.title }));
       close.onclick = () => void call('close', t.id);
       el.append(label, close);
       el.ondragstart = (e) => e.dataTransfer?.setData('text/plain', t.id);
@@ -129,7 +147,17 @@ function render() {
   $<HTMLButtonElement>('back').disabled = !tab?.canBack;
   $<HTMLButtonElement>('forward').disabled = !tab?.canForward;
   $('newtab').hidden = tab?.url !== 'nido://app/newtab';
-  $('blocked').textContent = state.blockingDisabled ? 'OFF' : String(tab?.blocked ?? 0);
+  const pausedYoutube = state.youtubePaused && isYoutubePage(tab?.url ?? '');
+  $('blocked').textContent = pausedYoutube
+    ? tr('PAUSA')
+    : state.blockingDisabled
+      ? 'OFF'
+      : String(tab?.blocked ?? 0);
+  $('blocking').title = tr(
+    pausedYoutube ? 'Bloqueo pausado en YouTube. Pulsa para reactivarlo.' : 'Bloqueo en este sitio',
+  );
+  $('youtube-status').hidden = !pausedYoutube;
+  $('youtube-status').textContent = tr('Bloqueo pausado en YouTube para continuar viendo.');
   renderSidebar();
   $('http-warning').hidden = !tab?.url.startsWith('http:');
 }

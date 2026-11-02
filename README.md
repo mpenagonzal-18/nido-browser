@@ -6,9 +6,9 @@ TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 
 ![Página de inicio de Nido](assets/nido-preview.png)
 
-**Versión publicada:** [v0.1.2](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/tag/v0.1.2) ·
-[Instalador Windows .exe](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/download/v0.1.2/Nido.Setup.0.1.2.exe) ·
-[macOS / Linux y checksums](https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios/releases/tag/v0.1.2).
+**Versión publicada:** [v0.1.2](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v0.1.2) ·
+[Instalador Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v0.1.2/Nido.Setup.0.1.2.exe) ·
+[macOS / Linux y checksums](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v0.1.2).
 
 > Proyecto inicial funcional. La interacción gráfica en Windows/macOS y los inicios de
 > sesión de proveedores necesitan revisión en sus plataformas. No es un navegador
@@ -41,8 +41,8 @@ GTK/NSS/ALSA y soporte de sandbox/user namespaces. No ejecutes Nido como root ni
 uses `--no-sandbox` para resolver errores de instalación.
 
 ```sh
-git clone https://github.com/mpenagonzal-18/navegador-customizable-sin-anuncios.git
-cd navegador-customizable-sin-anuncios
+git clone https://github.com/mpenagonzal-18/nido-browser.git
+cd nido-browser
 npm install
 npm run dev
 ```
@@ -83,11 +83,11 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **14,28 kB JS** (5,45 kB gzip), más unos
-**8,62 kB CSS**. El main propio ronda 53 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **26,40 kB JS** (9,16 kB gzip), más unos
+**8,78 kB CSS**. El main propio ronda 70 kB; Ghostery y Zod se conservan como módulos
 de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
-lista en aproximadamente **0,9 s** en esta máquina Linux headless con perfil de
+lista en aproximadamente **1,0–1,2 s** en esta máquina Linux headless con perfil de
 prueba; no es una garantía ni una medida de arranque en frío de otras plataformas.
 
 ## Privacidad y bloqueo
@@ -109,12 +109,28 @@ EasyList + EasyPrivacy se empaquetan localmente. La actualización requiere puls
 por CSS; no se ejecutan scriptlets. El contador ◈ es por pestaña, solo en memoria;
 pulsarlo desactiva/reactiva el bloqueo del sitio actual para esta ejecución.
 
-**Excepción de vídeo:** youtube.com, youtu.be, googlevideo.com, ytimg.com y
-youtube-nocookie.com y sus subdominios evitan completamente el motor, CSS y scripts
-del bloqueador. La lista se edita en ajustes. Las peticiones `media` tampoco se
-bloquean en otros sitios. EasyList no separa perfectamente scripts de banners y de
-vídeo en todos los servicios: añade una exclusión si un reproductor se ve afectado.
-El bloqueo de cookies es independiente y puede limitar YouTube.
+**YouTube y pausa automática:** por defecto se filtran peticiones publicitarias de
+YouTube. Si un aviso visible de YouTube indica que el bloqueador impide continuar,
+Nido pausa el bloqueo para YouTube y sus CDN durante esa ejecución, recarga una vez
+la pestaña afectada e intenta recuperar la posición del vídeo. Muestra «PAUSA» en
+la barra; pulsa el botón del bloqueador para reintentarlo. No borra cookies ni cierra
+sesiones. No inyecta cosmética ni scriptlets en YouTube: solo un detector local del
+aviso. No garantiza eliminar todos los anuncios ni reconocer futuros cambios de
+YouTube. La prueba usa avisos locales representativos, no el servicio real.
+
+Puedes desactivar **YouTube: pausar al detectar el aviso antibloqueadores** para
+excluir YouTube por completo, o añadir dominios a las exclusiones manuales; estas
+prevalecen y desactivan el detector en esos dominios. Fuera de YouTube no se bloquea
+el tipo de recurso `media`. Las listas no distinguen perfectamente banners y vídeo.
+
+## Idiomas
+
+En **Ajustes → Idioma de la interfaz**, elige **Español**, **English** o **Del sistema**
+(español para sistemas `es-*`; inglés para el resto). El cambio es inmediato y se
+guarda en el JSON local, también al exportar/importar ajustes. Traduce la interfaz,
+los controles y los diálogos propios de Nido, sin descargas ni servicios remotos.
+Las páginas web, los nombres personalizados y los mensajes de terceros conservan
+su idioma. El español se mantiene como idioma inicial en perfiles existentes.
 
 Consulta [PRIVACY](docs/PRIVACY.md) para almacenamiento, terceros, límites de red y
 rastros del sistema operativo; [SECURITY](SECURITY.md) para el modelo de seguridad.

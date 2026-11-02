@@ -20,6 +20,7 @@ await Promise.all([
       'src/preload/session-cookies.ts',
       'src/preload/temporary-site.ts',
       'src/preload/regular.ts',
+      'src/preload/youtube.ts',
     ],
     outdir: 'dist/preload',
     bundle: true,

@@ -5,6 +5,7 @@ vi.mock('electron', () => ({
   webContents: { fromId: () => ({ getURL: () => 'https://www.youtube.com/watch?v=x' }) },
 }));
 import { Blocking } from '../src/main/blocking';
+import { YOUTUBE_DOMAINS } from '../src/shared/youtube';
 import { defaults } from '../src/shared/settings';
 import type {
   Session,
@@ -14,7 +15,7 @@ import type {
 } from 'electron';
 describe('exclusión antes del motor y de cualquier inyección', () => {
   it('no consulta filtros para ninguna petición de una página YouTube', () => {
-    const blocking = new Blocking(defaults, vi.fn());
+    const blocking = new Blocking(() => ({ ...defaults(), youtubeAutoPause: false }), vi.fn());
     const match = vi.fn();
     Reflect.set(blocking, 'engine', { match });
     let listener: (
@@ -36,8 +37,8 @@ describe('exclusión antes del motor y de cualquier inyección', () => {
     expect(match).not.toHaveBeenCalled();
     expect(cb).toHaveBeenCalledWith({});
   });
-  it.each(defaults().videoExclusions)('no ejecuta scripts ni CSS en %s', async (host) => {
-    const blocking = new Blocking(defaults, vi.fn());
+  it.each(YOUTUBE_DOMAINS)('no ejecuta scripts ni CSS en %s', async (host) => {
+    const blocking = new Blocking(() => ({ ...defaults(), youtubeAutoPause: false }), vi.fn());
     const cosmetic = vi.fn();
     Reflect.set(blocking, 'engine', { getCosmeticsFilters: cosmetic });
     const contents = {
@@ -50,4 +51,21 @@ describe('exclusión antes del motor y de cualquier inyección', () => {
     expect(contents.executeJavaScript).not.toHaveBeenCalled();
     expect(contents.insertCSS).not.toHaveBeenCalled();
   });
+});
+
+it('filtra YouTube inicialmente, pausa solo YouTube y permite reactivarlo', () => {
+  const blocking = new Blocking(defaults, vi.fn());
+  const match = vi.fn(() => ({ match: true }));
+  Reflect.set(blocking, 'engine', { match });
+  const contents = { getURL: () => 'https://www.youtube.com/watch?v=test' } as WebContents;
+  expect(blocking.popupAllowed(contents, 'https://ads.example.test/')).toBe(false);
+  expect(blocking.pauseYoutube()).toBe(true);
+  expect(blocking.pauseYoutube()).toBe(false);
+  expect(blocking.popupAllowed(contents, 'https://ads.example.test/')).toBe(true);
+  expect(match).toHaveBeenCalledTimes(1);
+  expect(blocking.exempt('https://r1.googlevideo.com/video')).toBe(true);
+  expect(blocking.exempt('https://other.example.test')).toBe(false);
+  blocking.resumeYoutube();
+  expect(blocking.popupAllowed(contents, 'https://ads.example.test/')).toBe(false);
+  expect(match).toHaveBeenCalledTimes(2);
 });

@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { storageState, seedStorage, nativeWorkerAttempt } from './integration/storage';
+import { isAntiAdblockNotice, observeYoutubeNotice } from '../src/shared/youtube';
 import type { State } from '../src/shared/types';
 const started = Date.now();
 app.setPath('userData', process.env.NIDO_SMOKE_PROFILE!);
@@ -74,6 +75,9 @@ async function run() {
     return;
   }
   if (process.env.NIDO_SMOKE_STAGE === 'restart') {
+    assert.equal(initial.settings.language, 'en');
+    assert.equal(initial.locale, 'en');
+    assert.equal(await js('document.documentElement.lang'), 'en');
     assert.equal(initial.settings.accent, '#aabbcc');
     assert.equal((await browsing.cookies.get({})).length, 0);
     assert.equal(
@@ -778,6 +782,69 @@ window.fixtureDone=false;window.attempts={};
   assert.equal((await sessionOnly.cookies.get({ name: 'auth' })).length, 1);
   console.log(
     'PASS global profiles: no per-site toggle, login survives closed tab and cross-site navigation, persistent profile separate from session and AI',
+  );
+  const detected = await js(`(async () => {
+    const isAntiAdblockNotice = ${isAntiAdblockNotice.toString()};
+    let reports = 0;
+    const stop = (${observeYoutubeNotice.toString()})(() => reports++);
+    const article = document.createElement('p');
+    article.textContent = 'Ad blockers are not allowed on YouTube';
+    document.body.append(article);
+    const notice = document.createElement('ytd-enforcement-message-view-model');
+    notice.style.cssText = 'display:block;position:fixed;top:0;left:0;width:400px;height:80px';
+    notice.hidden = true;
+    notice.textContent = article.textContent;
+    document.body.append(notice);
+    await new Promise(r => setTimeout(r, 400));
+    if (reports !== 0) throw new Error('Hidden notice or arbitrary text triggered detection');
+    notice.hidden = false;
+    await new Promise(r => setTimeout(r, 400));
+    notice.textContent += ' Disable ad blocking';
+    await new Promise(r => setTimeout(r, 400));
+    stop(); notice.remove(); article.remove();
+    return reports;
+  })()`);
+  assert.equal(detected, 1, 'aviso visible detectado una sola vez en DOM real');
+  await call('settings', { ...(await state()).settings, language: 'en' });
+  await until(
+    () =>
+      js(
+        `document.documentElement.lang === 'en' && document.getElementById('settings-title').textContent === 'Settings'`,
+      ),
+    'idioma inglés en vivo',
+  );
+  assert.equal((await state()).locale, 'en');
+  assert.equal(
+    (await regular.cookies.get({ name: 'auth' })).length,
+    1,
+    'cambiar idioma conserva login',
+  );
+  console.log(
+    'PASS localization and real DOM YouTube detection: hidden/arbitrary text ignored, visible warning reports once',
+  );
+  // Intercept HTTPS in the test profile: exercise the real sandboxed YouTube
+  // preload and IPC without contacting YouTube or any third-party server.
+  let youtubeLoads = 0;
+  regular.protocol.handle('https', () => {
+    youtubeLoads++;
+    return new Response(
+      '<!doctype html><style>ytd-enforcement-message-view-model{display:block;width:500px;height:100px}</style><ytd-enforcement-message-view-model>Ad blockers violate YouTube terms of service</ytd-enforcement-message-view-model>',
+      { headers: { 'Content-Type': 'text/html' } },
+    );
+  });
+  try {
+    await call('navigate', 'https://www.youtube.com/watch?v=local-fixture');
+    await until(async () => (await state()).youtubePaused, 'pausa desde preload real de YouTube');
+    await until(() => youtubeLoads >= 2, 'una recarga con bloqueo pausado');
+    await wait(1000);
+    assert.equal(youtubeLoads, 2, 'sin bucle de recargas del aviso');
+    assert.equal((await regular.cookies.get({ name: 'auth' })).length, 1);
+    await call('navigate', `http://127.0.0.2:${port}/account`);
+  } finally {
+    regular.protocol.unhandle('https');
+  }
+  console.log(
+    'PASS production YouTube preload and IPC: automatic pause, one reload, no session deletion, all HTTPS served locally',
   );
   server.close();
   console.log(

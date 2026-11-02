@@ -1,0 +1,198 @@
+export type Locale = 'es' | 'en';
+export type Language = Locale | 'system';
+export function resolveLocale(language: Language, systemLocale = 'es'): Locale {
+  return language === 'system'
+    ? systemLocale.toLowerCase().startsWith('es')
+      ? 'es'
+      : 'en'
+    : language;
+}
+/** Spanish source strings are stable message IDs. No remote language packs. */
+export const ENGLISH: Record<string, string> = {
+  Idioma: 'Language',
+  'Del sistema': 'System default',
+  'Idioma de la interfaz': 'Interface language',
+  'Color y fondo': 'Colors and background',
+  Acento: 'Accent',
+  Tema: 'Theme',
+  Fondo: 'Background',
+  'Color del fondo': 'Background color',
+  Desenfoque: 'Blur',
+  Oscurecimiento: 'Dimming',
+  'Elegir imagen local': 'Choose local image',
+  'Un poco de calma. Un mundo por descubrir.': 'A little calm. A world to discover.',
+  'Un poco de calma.': 'A little calm.',
+  'Un mundo por descubrir.': 'A world to discover.',
+  'TU RINCÓN EN INTERNET': 'YOUR CORNER OF THE INTERNET',
+  'Tu navegador. Tu ritmo. Tu espacio.': 'Your browser. Your pace. Your space.',
+  '◒ Hecho para quedarte a gusto.': '◒ Make yourself at home.',
+  '¿Qué te apetece descubrir?': 'What would you like to discover?',
+  Buscar: 'Search',
+  'Busca o escribe una dirección': 'Search or enter an address',
+  'Dirección o búsqueda': 'Address or search',
+  'Nueva pestaña': 'New tab',
+  'Nueva pestaña (Ctrl/Cmd+T)': 'New tab (Ctrl/Cmd+T)',
+  'Cargando…': 'Loading…',
+  'No se pudo cargar': 'Could not load page',
+  Minimizar: 'Minimize',
+  Maximizar: 'Maximize',
+  'Cerrar ventana': 'Close window',
+  Atrás: 'Back',
+  Adelante: 'Forward',
+  Recargar: 'Reload',
+  Inicio: 'Home',
+  'Estado de conexión': 'Connection status',
+  'Bloqueo en este sitio': 'Ad blocking on this site',
+  'Asistentes (Ctrl/Cmd+Shift+A)': 'Assistants (Ctrl/Cmd+Shift+A)',
+  'ESPACIO PERSONAL': 'PERSONAL SPACE',
+  '⚠ Conexión HTTP sin cifrar': '⚠ Unencrypted HTTP connection',
+  Ajustes: 'Settings',
+  'Cerrar ajustes': 'Close settings',
+  'A TU MANERA': 'MAKE IT YOURS',
+  'Ancho de la sidebar': 'Sidebar width',
+  'Navegación y memoria': 'Browsing and memory',
+  Buscador: 'Search engine',
+  'Endpoint SearXNG': 'SearXNG endpoint',
+  'Suspender pestañas tras (minutos)': 'Suspend background tabs after (minutes)',
+  'Cookies y datos de todas las páginas': 'Cookies and data for all sites',
+  'Conservar entre reinicios': 'Keep between restarts',
+  'Borrar al salir': 'Clear on exit',
+  'Privacidad estricta': 'Strict privacy',
+  'Mantiene tus sesiones en todas las páginas entre reinicios. Los datos se guardan en este equipo; los terceros siguen bloqueados. Elegir otro modo no borra lo ya guardado: usa el botón de borrado para eliminarlo.':
+    'Keeps website sessions between restarts. Data stays on this device; third-party cookies remain blocked. Changing modes does not delete saved data: use the clear button to remove it.',
+  'Permite cookies propias y datos en todas las páginas hasta cerrar Nido. No borra automáticamente los datos de un perfil permanente usado antes.':
+    'Allows first-party cookies and website data until you close Nido. It does not automatically erase data from a previously used permanent profile.',
+  'Deniega almacenamiento y cookies en el perfil estricto. Los datos del perfil permanente anterior solo se eliminan con el botón de borrado.':
+    'Blocks storage and cookies in the strict profile. Previously saved permanent-profile data is removed only with the clear button.',
+  'Borrar cookies y datos de sitios (cierra sesiones)':
+    'Clear cookies and site data (signs you out)',
+  'Cookies propias solo durante la sesión estricta':
+    'Allow first-party cookies during the strict session',
+  'Excepciones temporales del modo estricto (dominios separados por comas)':
+    'Temporary strict-mode exceptions (comma-separated domains)',
+  'Historial local persistente': 'Save local browsing history',
+  'Borrar historial local': 'Clear local history',
+  'Música local': 'Local music',
+  'La reproducción permanece en la interfaz; cambiar o suspender pestañas no la interrumpe. No comienza automáticamente al arrancar.':
+    'Playback stays in the browser interface and continues when tabs change or suspend. It never starts automatically on launch.',
+  'Recordar lista (rutas locales)': 'Remember playlist (local paths)',
+  'Elegir archivos de audio': 'Choose audio files',
+  'Elegir música local': 'Choose local music',
+  'Pista anterior': 'Previous track',
+  'Reproducir / pausar': 'Play / pause',
+  'Pista siguiente': 'Next track',
+  Volumen: 'Volume',
+  'Repetir lista': 'Repeat playlist',
+  'Orden aleatorio': 'Shuffle',
+  'No se pudo reproducir. Comprueba que el archivo existe y su formato.':
+    'Could not play the file. Check that it exists and its format is supported.',
+  'Asistentes de IA': 'AI assistants',
+  'Los proveedores son servicios de terceros. Eliminar o cambiar un proveedor borra los datos de toda la sesión de IA para no conservar dominios retirados. Descargar vistas puede perder borradores no enviados.':
+    'Providers are third-party services. Removing or changing a provider clears the AI session so removed domains retain no data. Unloading views may lose unsent drafts.',
+  Lado: 'Side',
+  'Ancho (px)': 'Width (px)',
+  'Descargar proveedores inactivos (0 = nunca)': 'Unload idle providers after minutes (0 = never)',
+  'Reordenar proveedor': 'Reorder provider',
+  'Quitar {name}': 'Remove {name}',
+  'Añadir proveedor': 'Add provider',
+  'Asistente local': 'Local assistant',
+  'Borrar datos de la sidebar de IA': 'Clear AI sidebar data',
+  nombre: 'name',
+  icono: 'icon',
+  'Bloqueo de banners': 'Ad blocking',
+  'EasyList + EasyPrivacy locales. No se descargan listas al arrancar. Las exclusiones evitan cualquier consulta al motor y cualquier inyección del bloqueador en esos dominios.':
+    'Local EasyList + EasyPrivacy. Lists are never downloaded at startup. Manual exclusions bypass the filtering engine and ad-blocker injection on those domains.',
+  'YouTube: pausar al detectar el aviso antibloqueadores':
+    'YouTube: pause when an anti-adblock notice is detected',
+  'El bloqueo de YouTube se pausa para esta ejecución si aparece su aviso. Puede requerir una recarga automática; se intenta conservar la posición. Las exclusiones manuales prevalecen.':
+    'YouTube blocking pauses for this run if its notice appears. One automatic reload may be needed; playback position is restored when possible. Manual exclusions take priority.',
+  'Exclusiones de vídeo (separadas por comas)': 'Video exclusions (comma-separated domains)',
+  'Actualizar listas manualmente': 'Update filter lists manually',
+  'Configuración local': 'Local configuration',
+  'El JSON exportado contiene ajustes y rutas locales, nunca cookies ni conversaciones.':
+    'Exported JSON contains settings and local paths, never cookies or conversations.',
+  'Exportar JSON': 'Export JSON',
+  'Importar JSON': 'Import JSON',
+  'Restablecer ajustes': 'Reset settings',
+  'Cookies activadas': 'Cookies enabled',
+  Temporal: 'Temporary',
+  Estricto: 'Strict',
+  'Cookies propias activadas en todas las páginas. Gestionar datos en ajustes.':
+    'First-party cookies are enabled on all sites. Manage data in Settings.',
+  'Volver al modo estricto y borrar los datos temporales del sitio':
+    'Return to strict mode and clear temporary site data',
+  'Permitir cookies propias y almacenamiento temporal para este sitio':
+    'Allow first-party cookies and temporary storage for this site',
+  'Sesiones guardadas en este equipo': 'Sessions saved on this device',
+  'Datos hasta cerrar Nido': 'Data kept until Nido closes',
+  'Cookies de terceros bloqueadas': 'Third-party cookies blocked',
+  'Sin telemetría': 'No telemetry',
+  'Compatibilidad temporal': 'Temporary compatibility',
+  'Sesión efímera': 'Ephemeral session',
+  'Cookies propias temporales': 'Temporary first-party cookies',
+  'Sin cookies': 'No cookies',
+  'Cerrar {title}': 'Close {title}',
+  PAUSA: 'PAUSED',
+  'Bloqueo pausado en YouTube. Pulsa para reactivarlo.':
+    'Blocking paused on YouTube. Click to resume.',
+  'Bloqueo pausado en YouTube para continuar viendo.':
+    'Blocking paused on YouTube so you can keep watching.',
+  'Copiar texto seleccionado para la IA': 'Copy selected text for AI',
+  'Copiar URL de la página actual': 'Copy current page URL',
+  'Permiso por sitio': 'Site permission',
+  '{origin} solicita {permission}.': '{origin} requests {permission}.',
+  'Solo se permite tras esta confirmación. La autorización dura esta ejecución y no se guarda en disco.':
+    'Only allowed after confirmation. Permission lasts for this run and is not saved to disk.',
+  Denegar: 'Deny',
+  'Permitir esta vez': 'Allow this time',
+  micrófono: 'microphone',
+  cámara: 'camera',
+  ubicación: 'location',
+  notificaciones: 'notifications',
+  'Cookies y datos de navegación borrados. La sesión de IA no se ha borrado.':
+    'Browsing cookies and data cleared. The AI session was not cleared.',
+  'Datos de IA borrados': 'AI data cleared',
+  'Listas actualizadas. Recarga las páginas.': 'Lists updated. Reload your pages.',
+  'Archivo local no permitido': 'Local file not allowed',
+  'Archivo no seleccionado': 'File not selected',
+  'No es un archivo': 'Not a file',
+  'Configuración demasiado grande': 'Configuration file is too large',
+  'Lista no válida': 'Invalid filter list',
+  'No autorizado': 'Not authorized',
+  'Esquema no permitido': 'URL scheme not allowed',
+  'URL de buscador inválida': 'Invalid search engine URL',
+  'IPC no autorizado': 'Unauthorized IPC',
+  Automático: 'Automatic',
+  Oscuro: 'Dark',
+  Claro: 'Light',
+  Degradado: 'Gradient',
+  'Color sólido': 'Solid color',
+  Imagen: 'Image',
+  Izquierda: 'Left',
+  Derecha: 'Right',
+};
+export function translate(
+  source: string,
+  locale: Locale,
+  values: Record<string, string | number> = {},
+): string {
+  const message = locale === 'en' ? (ENGLISH[source] ?? source) : source;
+  return message.replace(/\{(\w+)\}/g, (token, name: string) => String(values[name] ?? token));
+}
+export const OPTION_NAMES: Record<string, string> = {
+  auto: 'Automático',
+  dark: 'Oscuro',
+  light: 'Claro',
+  gradient: 'Degradado',
+  solid: 'Color sólido',
+  image: 'Imagen',
+  left: 'Izquierda',
+  right: 'Derecha',
+  system: 'Del sistema',
+  es: 'Español',
+  en: 'English',
+  duckduckgo: 'DuckDuckGo',
+  brave: 'Brave Search',
+  startpage: 'Startpage',
+  searxng: 'SearXNG',
+};
