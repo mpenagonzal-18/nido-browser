@@ -71,3 +71,28 @@ para todos los sitios por defecto. No hace falta activar Temporal por página. L
 datos se conservan en disco entre reinicios, sujetos a la caducidad de cada web.
 La preferencia Borrar al salir y el modo estricto quedan disponibles; el botón de
 borrado elimina datos de navegación sin borrar la sesión de los asistentes.
+
+## Actualización v0.1.3 — idiomas y pausa de YouTube
+
+Publicada el 2 de noviembre de 2026 en **mpenagonzal-18/nido-browser**, nuevo nombre
+del mismo repositorio. Tag `v0.1.3`, commit
+`6cae032df696d58d90371239f402a04accf8a88b`.
+
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41462610886): **Success**, 1 min 57 s; lint, tipos, 74 pruebas, integración Electron y empaquetado de tres plataformas.
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41462613649): **Success**, 9 min 51 s; incluye espera de runner macOS, instaladores nativos y checksums.
+- [Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v0.1.3/Nido.Setup.0.1.3.exe).
+- [Todos los instaladores](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v0.1.3).
+- [SHA256SUMS.txt](https://github.com/mpenagonzal-18/nido-browser/releases/download/v0.1.3/SHA256SUMS.txt).
+
+Se descargó el `.exe` público y se verificaron cabecera PE (`MZ`), tamaño
+**123.495.062 bytes** y SHA-256 contra el manifiesto de la release:
+
+```text
+5b605e0eed001d0be0cb31ba0a3ab9067f40c14f192586cda94a04675728cc10
+```
+
+El ejecutable Linux empaquetado también arrancó correctamente desde asar. El smoke
+usa el preload/IPC de producción con HTTPS interceptado localmente para verificar
+una pausa y una única recarga, sin borrar login. Comprueba traducción inmediata y
+persistencia del idioma tras reinicio. No equivale a una prueba de YouTube en vivo
+ni de interacción gráfica en Windows/macOS. Instaladores sin firma/notarización.
