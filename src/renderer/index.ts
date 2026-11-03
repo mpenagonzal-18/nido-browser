@@ -1,3 +1,4 @@
+import { renderDownloads } from './downloads-ui';
 import { translate } from '../shared/i18n';
 import { isYoutubePage } from '../shared/youtube';
 import { applyLanguage } from './language';
@@ -26,16 +27,41 @@ $('privacy-toggle').onclick = () => {
 $('ai-toggle').onclick = () => void call('sidebar-toggle');
 $('blocking').onclick = () => void call('toggle-blocking');
 let settingsOpen = false;
+let downloadsOpen = false;
 let settingsSignature = '';
 const updateMusic = musicPlayer((next) => {
   void call('settings', next);
 });
 function showSettings(open: boolean) {
+  if (open) {
+    downloadsOpen = false;
+    $('downloads').hidden = true;
+  }
   settingsOpen = open;
   $('settings').hidden = !open;
   void call('overlay', open);
   if (open) drawSettings();
 }
+function showDownloads(open: boolean) {
+  downloadsOpen = open;
+  if (open) {
+    settingsOpen = false;
+    $('settings').hidden = true;
+  }
+  $('downloads').hidden = !open;
+  void call('overlay', open || settingsOpen);
+  if (state) render();
+}
+$('downloads-toggle').onclick = () => showDownloads(!downloadsOpen);
+$('downloads-close').onclick = () => showDownloads(false);
+$('downloads-clear').onclick = () => void call('clear-downloads');
+window.nido.onDownloads(() => showDownloads(!downloadsOpen));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    if (downloadsOpen) showDownloads(false);
+    else if (settingsOpen) showSettings(false);
+  }
+});
 function drawSettings() {
   const controls = [
     ...$('settings-body').querySelectorAll<HTMLInputElement | HTMLSelectElement>('input,select'),
@@ -82,6 +108,14 @@ window.nido.onState((next) => {
 function render() {
   void applyAppearance(state.settings);
   applyLanguage(state.locale);
+  const activeDownloads = state.downloads.filter(
+    (d) => d.status === 'progressing' || d.canResume,
+  ).length;
+  $('downloads-count').textContent = activeDownloads ? String(activeDownloads) : '';
+  if (downloadsOpen)
+    renderDownloads($('downloads-body'), state, (id, action) => {
+      void call('download', { id, action });
+    });
   updateMusic(state.settings, state.locale);
   const globalMode = state.settings.browsingMode !== 'strict';
   $('privacy-toggle').textContent = globalMode
@@ -122,6 +156,7 @@ function render() {
       const el = document.createElement('div');
       el.className = `tab ${t.id === state.active ? 'active' : ''}`;
       el.draggable = true;
+      el.dataset.tabId = t.id;
       el.role = 'tab';
       el.setAttribute('aria-selected', String(t.id === state.active));
       const label = document.createElement('button');
@@ -204,12 +239,12 @@ $('sidebar-handle').onpointermove = (event) => {
 };
 $('sidebar-handle').onpointercancel = () => {
   resizing = false;
-  void call('overlay', settingsOpen);
+  void call('overlay', settingsOpen || downloadsOpen);
 };
 $('sidebar-handle').onpointerup = () => {
   resizing = false;
   void call('settings', state.settings);
-  void call('overlay', settingsOpen);
+  void call('overlay', settingsOpen || downloadsOpen);
 };
 $('sidebar-handle').onkeydown = (event) => {
   if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {

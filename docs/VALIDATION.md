@@ -137,3 +137,26 @@ página carga exactamente dos veces (inicial + recarga) y conserva las cookies. 
 prueba no sustituye comprobar anuncios, reproductor y avisos de YouTube en vivo.
 Las pruebas unitarias cubren rechazo de iframes, emisores ajenos y payloads inválidos,
 prioridad de exclusiones, pausa/reanudación y migración de ajustes antiguos.
+
+## v1.0.0 — temas, menús, descargas y última pestaña
+
+79 pruebas unitarias, lint y tipos correctos. La integración Electron con sandbox
+verifica diez tarjetas de tema, cambio real de color en la cabecera, selección y
+persistencia de paleta/gradiente tras reinicio. Se generan menús nativos mediante
+clics derechos reales en la barra y pestañas: «Pegar y acceder», duplicar y cerrar.
+Los menús de enlaces/imágenes y esquemas peligrosos también tienen pruebas unitarias.
+
+Un servidor local entrega 4 MiB con soporte Range. La prueba descarga usando la
+sesión real autenticada, verifica la cookie propia, pausa/reanuda desde el IPC de
+producción y comprueba todos los bytes del archivo. Comprueba cancelación, indicador
+y panel de progreso, confirmación de cierre cancelada y limpieza de registro sin
+borrar archivos. Se rechazan IDs inválidos; una prueba aislada del gestor garantiza
+que solo se abren rutas de archivos completados conocidos, nunca rutas del IPC.
+En otro proceso, el registro está vacío y ajustes/sesiones conservan su estado.
+El tercer arranque cierra la única pestaña y comprueba salida real sin ventanas.
+
+El ejecutable Linux v1.0.0 empaquetado en asar arrancó correctamente y se capturó
+la interfaz para revisión visual. Las pruebas no automatizan el diálogo de selección
+de archivos ni la apertura de aplicaciones externas; se usa una ruta temporal en
+el runner para evitar interacción. La interfaz gráfica completa y los diálogos de
+Windows/macOS requieren revisión en escritorio.

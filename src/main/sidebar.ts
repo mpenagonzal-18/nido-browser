@@ -1,7 +1,7 @@
-import { resolveLocale, translate } from '../shared/i18n';
+import { pageMenu } from './context-menu';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { WebContentsView, session, type BrowserWindow, clipboard, Menu, app } from 'electron';
+import { WebContentsView, session, type BrowserWindow, Menu, app } from 'electron';
 import type { Settings } from '../shared/settings';
 import { domainMatches, hostname, providerAllows } from '../shared/privacy';
 import { isWebUrl } from '../shared/navigation';
@@ -18,7 +18,7 @@ export class Sidebar {
     private win: BrowserWindow,
     private settings: () => Settings,
     private blocking: Blocking,
-    private openTab: (url: string) => unknown,
+    private openTab: (url: string, foreground?: boolean) => unknown,
     private changed: () => void,
     private key: (input: Electron.Input) => boolean,
   ) {}
@@ -113,23 +113,16 @@ export class Sidebar {
         () => void this.blocking.cosmetic(view.webContents, true),
       );
       view.webContents.on('context-menu', (_, params) => {
-        Menu.buildFromTemplate([
-          {
-            label: translate(
-              'Copiar texto seleccionado para la IA',
-              resolveLocale(this.settings().language, app.getLocale()),
-            ),
-            enabled: Boolean(params.selectionText),
-            click: () => clipboard.writeText(params.selectionText),
-          },
-          {
-            label: translate(
-              'Copiar URL de la página actual',
-              resolveLocale(this.settings().language, app.getLocale()),
-            ),
-            click: () => clipboard.writeText(view.webContents.getURL()),
-          },
-        ]).popup({ window: this.win });
+        Menu.buildFromTemplate(
+          pageMenu(view.webContents, params, {
+            settings: this.settings(),
+            systemLocale: app.getLocale(),
+            open: (url) => {
+              this.openTab(url, false);
+            },
+            navigate: this.openTab,
+          }),
+        ).popup({ window: this.win });
       });
       void view.webContents.loadURL(provider.url).catch(() => {});
     }

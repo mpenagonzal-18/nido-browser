@@ -13,6 +13,10 @@ export function applyLanguage(locale: Locale) {
     'http-warning': '⚠ Conexión HTTP sin cifrar',
     'settings-kicker': 'A TU MANERA',
     'settings-title': 'Ajustes',
+    'downloads-title': 'Descargas',
+    'downloads-clear': 'Limpiar terminadas',
+    'downloads-note':
+      'El registro se borra al salir; los archivos guardados permanecen. Las descargas activas se cancelan al cerrar Nido.',
   };
   for (const [id, source] of Object.entries(texts))
     document.getElementById(id)!.textContent = tr(source);
@@ -31,6 +35,9 @@ export function applyLanguage(locale: Locale) {
     'ai-toggle': { title: 'Asistentes (Ctrl/Cmd+Shift+A)' },
     'settings-toggle': { 'aria-label': 'Ajustes' },
     settings: { 'aria-label': 'Ajustes' },
+    downloads: { 'aria-label': 'Descargas' },
+    'downloads-toggle': { 'aria-label': 'Descargas', title: 'Descargas (Ctrl/Cmd+J)' },
+    'downloads-close': { 'aria-label': 'Cerrar descargas' },
     'settings-close': { 'aria-label': 'Cerrar ajustes' },
     'sidebar-handle': { 'aria-label': 'Ancho de la sidebar' },
   };

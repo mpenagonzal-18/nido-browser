@@ -1,3 +1,5 @@
+import { Downloads } from './downloads';
+import { pageMenu, addressMenu, editMenu } from './context-menu';
 import { resolveLocale, translate } from '../shared/i18n';
 import { isYoutubePage } from '../shared/youtube';
 import { handleYoutubeNotice } from './youtube';
@@ -14,7 +16,7 @@ import {
   protocol,
   net,
   Menu,
-  clipboard,
+  dialog,
 } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -74,6 +76,7 @@ const blocking = new Blocking(
 let active = '';
 let sidebar: Sidebar;
 let overlay = false;
+const downloads = new Downloads(sendState);
 let browsingPrivacy: ReturnType<typeof configurePrivacy>;
 let temporaryPrivacy: ReturnType<typeof configurePrivacy>;
 let regularPrivacy: ReturnType<typeof configurePrivacy>;
@@ -106,6 +109,7 @@ function sendState() {
     settings,
     locale: locale(),
     youtubePaused: blocking.youtubePaused,
+    downloads: downloads.snapshot(),
     version: app.getVersion(),
     compatible: !!current()?.site,
     blockingDisabled: blocking.exempt(current()?.state.url ?? ''),
@@ -181,17 +185,18 @@ function createView(tab: Tab) {
   tab.state.suspended = false;
   win.contentView.addChildView(view);
   view.webContents.on('context-menu', (_, params) => {
-    Menu.buildFromTemplate([
-      {
-        label: tr('Copiar texto seleccionado para la IA'),
-        enabled: Boolean(params.selectionText),
-        click: () => clipboard.writeText(params.selectionText),
-      },
-      {
-        label: tr('Copiar URL de la página actual'),
-        click: () => clipboard.writeText(view.webContents.getURL()),
-      },
-    ]).popup({ window: win });
+    Menu.buildFromTemplate(
+      pageMenu(view.webContents, params, {
+        settings,
+        systemLocale: app.getLocale(),
+        open: (url) => {
+          openTab(url, false);
+        },
+        navigate: (url) => {
+          void navigateTab(tab, url);
+        },
+      }),
+    ).popup({ window: win });
   });
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (isWebUrl(url) && blocking.popupAllowed(view.webContents, url)) openTab(url);
@@ -241,7 +246,7 @@ function createView(tab: Tab) {
     sendState();
   });
 }
-function openTab(url = 'nido://app/newtab') {
+function openTab(url = 'nido://app/newtab', foreground = true) {
   const tab: Tab = {
     state: {
       id: crypto.randomUUID(),
@@ -258,19 +263,28 @@ function openTab(url = 'nido://app/newtab') {
   };
   tabs.push(tab);
   createView(tab);
-  activate(tab.state.id);
+  if (foreground) activate(tab.state.id);
+  else {
+    layout();
+    sendState();
+  }
   return tab.state.id;
 }
 async function closeTab(id: string) {
   const index = tabs.findIndex((t) => t.state.id === id);
   if (index < 0) return;
+  if (tabs.length === 1) {
+    win.close();
+    return;
+  }
   const [tab] = tabs.splice(index, 1);
   if (tab.view) {
-    win.contentView.removeChildView(tab.view);
-    tab.view.webContents.close();
+    const view = tab.view;
+    tab.view = undefined;
+    win.contentView.removeChildView(view);
+    view.webContents.close();
   }
-  if (!tabs.length) openTab();
-  else if (id === active) activate(tabs[Math.min(index, tabs.length - 1)].state.id);
+  if (id === active) activate(tabs[Math.min(index, tabs.length - 1)].state.id);
   sendState();
   await clearContext(tab.site, tab.origins, tab);
 }
@@ -325,6 +339,9 @@ function shortcut(input: Electron.Input): boolean {
         return true;
       }
       return false;
+    case 'j':
+      win.webContents.send('nido:show-downloads');
+      return true;
     case 't':
       openTab();
       return true;
@@ -371,10 +388,18 @@ const Command = z.discriminatedUnion('action', [
     'reset-settings',
     'clear-history',
     'clear-browsing-data',
+    'clear-downloads',
   ].map((action) => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
   ...['activate', 'close', 'navigate', 'provider', 'media-url'].map((action) =>
     z.object({ action: z.literal(action), payload: z.string().max(4096) }),
   ),
+  z.object({
+    action: z.literal('download'),
+    payload: z.object({
+      id: z.string().uuid(),
+      action: z.enum(['pause', 'resume', 'cancel', 'open', 'folder']),
+    }),
+  }),
   z.object({ action: z.literal('settings'), payload: SettingsSchema }),
   z.object({ action: z.literal('overlay'), payload: z.boolean() }),
   z.object({
@@ -436,10 +461,100 @@ app.whenReady().then(async () => {
     shortcut,
   );
   await sidebar.prepare();
+  for (const ses of [browsing, temporarySession, regularSession, sessionOnly, sidebar.session])
+    downloads.attach(ses);
+  let confirmingClose = false;
   win.on('close', (event) => {
     if (!cleanupFinished) {
       event.preventDefault();
-      app.quit();
+      if (!downloads.active) app.quit();
+      else if (!confirmingClose) {
+        confirmingClose = true;
+        void dialog
+          .showMessageBox(win, {
+            type: 'question',
+            title: tr('Descargas activas'),
+            message: tr('Cerrar Nido cancelará las descargas activas.'),
+            buttons: [tr('Seguir descargando'), tr('Cerrar Nido')],
+            defaultId: 0,
+            cancelId: 0,
+          })
+          .then(({ response }) => {
+            confirmingClose = false;
+            if (response === 1) app.quit();
+          })
+          .catch(() => {
+            confirmingClose = false;
+          });
+      }
+    }
+  });
+  win.webContents.on('context-menu', async (_, params) => {
+    try {
+      const target = await win.webContents.executeJavaScript(`(() => {
+      const el = document.elementFromPoint(${Number(params.x)}, ${Number(params.y)});
+      const tab = el?.closest('[data-tab-id]');
+      return { id: tab?.getAttribute('data-tab-id'), address: ['address','search'].includes(el?.id) };
+    })()`);
+      if (win.isDestroyed()) return;
+      let template: Electron.MenuItemConstructorOptions[];
+      if (target.id && tabs.some((t) => t.state.id === target.id)) {
+        const id: string = target.id;
+        template = [
+          {
+            label: tr('Nueva pestaña'),
+            click: () => {
+              openTab();
+            },
+          },
+          {
+            label: tr('Duplicar pestaña'),
+            click: () => {
+              const tab = tabs.find((t) => t.state.id === id);
+              if (tab) openTab(tab.state.url);
+            },
+          },
+          { type: 'separator' },
+          {
+            label: tr('Cerrar pestaña'),
+            click: () => {
+              void closeTab(id);
+            },
+          },
+          {
+            label: tr('Cerrar las demás pestañas'),
+            click: () => {
+              void (async () => {
+                for (const tab of [...tabs]) if (tab.state.id !== id) await closeTab(tab.state.id);
+              })();
+            },
+          },
+        ];
+      } else if (target.address)
+        template = await addressMenu(params, {
+          settings,
+          systemLocale: app.getLocale(),
+          open: (url) => {
+            openTab(url, false);
+          },
+          navigate: (url) => {
+            const tab = current();
+            if (tab) void navigateTab(tab, url);
+          },
+        });
+      else if (params.isEditable) template = editMenu(params, locale());
+      else
+        template = [
+          {
+            label: tr('Nueva pestaña'),
+            click: () => {
+              openTab();
+            },
+          },
+        ];
+      if (!win.isDestroyed()) Menu.buildFromTemplate(template).popup({ window: win });
+    } catch (error) {
+      if (!win.isDestroyed()) console.error('Context menu failed', error);
     }
   });
   win.on('resize', layout);
@@ -498,6 +613,17 @@ app.whenReady().then(async () => {
     const command = Command.parse(raw);
     const tab = current();
     switch (command.action) {
+      case 'download': {
+        const payload = command.payload as {
+          id: string;
+          action: 'pause' | 'resume' | 'cancel' | 'open' | 'folder';
+        };
+        await downloads.action(payload.id, payload.action);
+        break;
+      }
+      case 'clear-downloads':
+        downloads.clear();
+        break;
       case 'media-url':
         return mediaUrl(command.payload as string, settings);
       case 'choose-music': {
@@ -672,6 +798,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (shuttingDown) return;
   shuttingDown = true;
+  downloads.stop();
   browsingPrivacy?.dispose();
   temporaryPrivacy?.dispose();
   regularPrivacy?.dispose();
@@ -679,8 +806,11 @@ app.on('before-quit', (event) => {
   // Destroy remote producers before clearing their storage. Keep the native
   // window alive until cleanup finishes, so child views can be detached safely.
   sidebar?.closeAll();
-  for (const tab of tabs)
-    if (tab.view && !tab.view.webContents.isDestroyed()) tab.view.webContents.close();
+  for (const tab of tabs) {
+    const contents = tab.view?.webContents;
+    tab.view = undefined;
+    if (contents && !contents.isDestroyed()) contents.close();
+  }
   void (async () => {
     try {
       await browsingPrivacy?.clearAll();

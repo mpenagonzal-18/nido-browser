@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, webContents } from 'electron';
+import { app, BrowserWindow, session, webContents, Menu, clipboard, dialog } from 'electron';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -71,10 +71,18 @@ async function run() {
     assert.equal((await ai.cookies.get({})).length, 0);
     console.log('PASS configuration change: removed provider data is cleared on startup');
     clearTimeout(deadline);
-    app.exit(0);
+    assert.equal(initial.tabs.length, 1);
+    app.once('will-quit', () => {
+      assert.equal(BrowserWindow.getAllWindows().length, 0);
+      console.log('PASS closing the only tab quits the browser');
+    });
+    void call('close', initial.active).catch(() => {});
     return;
   }
   if (process.env.NIDO_SMOKE_STAGE === 'restart') {
+    assert.equal(initial.downloads.length, 0, 'registro de descargas no persiste');
+    assert.equal(initial.settings.colorTheme, 'ocean');
+    assert.equal(initial.settings.gradientPreset, 'ocean');
     assert.equal(initial.settings.language, 'en');
     assert.equal(initial.locale, 'en');
     assert.equal(await js('document.documentElement.lang'), 'en');
@@ -181,9 +189,53 @@ async function run() {
     return;
   }
   assert.equal(webContents.getAllWebContents().length, 1, 'no remote views created at startup');
+  const originalColor = await js(
+    `getComputedStyle(document.querySelector('header')).backgroundColor`,
+  );
+  await js(`document.getElementById('settings-toggle').click()`);
+  assert.equal(await js(`document.querySelectorAll('.theme-presets button').length`), 10);
+  await js(`document.querySelectorAll('.theme-presets button')[1].click()`);
+  await until(async () => (await state()).settings.colorTheme === 'ocean', 'tema océano');
+  assert.notEqual(
+    await js(`getComputedStyle(document.querySelector('header')).backgroundColor`),
+    originalColor,
+  );
+  assert.equal(
+    await js(`document.querySelector('.theme-presets button[aria-pressed=true]').textContent`),
+    'Océano',
+  );
+  await js(`document.getElementById('settings-close').click()`);
+  console.log('PASS ten theme tiles: selection repaints browser chrome and persists');
   const trackerCookies: string[] = [];
   let cacheRequests = 0;
+  const downloadCookies: string[] = [];
   const server = createServer((req, res) => {
+    if (req.url?.startsWith('/download')) {
+      downloadCookies.push(req.headers.cookie ?? '');
+      const size = 4 * 1024 * 1024;
+      let offset = Number(req.headers.range?.match(/bytes=(\d+)-/)?.[1] ?? 0);
+      if (offset) {
+        res.statusCode = 206;
+        res.setHeader('Content-Range', `bytes ${offset}-${size - 1}/${size}`);
+      }
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', 'attachment; filename="nido-fixture.bin"');
+      res.setHeader('Content-Length', size - offset);
+      const timer = setInterval(() => {
+        const length = Math.min(65536, size - offset);
+        if (length) {
+          res.write(Buffer.alloc(length, 78));
+          offset += length;
+        }
+        if (offset >= size) {
+          clearInterval(timer);
+          res.end();
+        }
+      }, 40);
+      res.on('close', () => clearInterval(timer));
+      return;
+    }
     if (req.url === '/cache-resource') {
       cacheRequests++;
       res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -783,6 +835,125 @@ window.fixtureDone=false;window.attempts={};
   console.log(
     'PASS global profiles: no per-site toggle, login survives closed tab and cross-site navigation, persistent profile separate from session and AI',
   );
+  // Capture real native menu construction without opening a blocking OS popup.
+  const menus: Menu[] = [];
+  const originalPopup = Menu.prototype.popup;
+  Menu.prototype.popup = function () {
+    menus.push(this);
+  };
+  const rightClick = async (selector: string) => {
+    const rect = await js(
+      `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return {x:Math.round(r.x+r.width/2), y:Math.round(r.y+r.height/2)}; })()`,
+    );
+    win.webContents.sendInputEvent({ type: 'mouseDown', button: 'right', clickCount: 1, ...rect });
+    win.webContents.sendInputEvent({ type: 'mouseUp', button: 'right', clickCount: 1, ...rect });
+    return until(() => menus.pop(), 'menú contextual nativo');
+  };
+  try {
+    await clipboard.writeText(`http://127.0.0.2:${port}/account?paste=1`);
+    const addressMenu = await rightClick('#address');
+    const paste = addressMenu.items.find((item) => item.label === 'Pegar y acceder');
+    assert.ok(paste?.enabled);
+    paste.click(paste, win, {} as Electron.KeyboardEvent);
+    await until(async () => {
+      const s = await state();
+      return s.tabs.find((t) => t.id === s.active)?.url.endsWith('/account?paste=1');
+    }, 'pegar y acceder');
+    const before = await state();
+    const tabMenu = await rightClick('.tab.active');
+    assert.ok(tabMenu.items.some((item) => item.label === 'Cerrar pestaña'));
+    const duplicate = tabMenu.items.find((item) => item.label === 'Duplicar pestaña')!;
+    duplicate.click(duplicate, win, {} as Electron.KeyboardEvent);
+    await until(
+      async () => (await state()).tabs.length === before.tabs.length + 1,
+      'duplicar pestaña',
+    );
+    const duplicateId = (await state()).active;
+    await call('close', duplicateId);
+    await call('navigate', `http://127.0.0.2:${port}/account`);
+  } finally {
+    Menu.prototype.popup = originalPopup;
+  }
+  console.log(
+    'PASS native context menus: right click address, paste-and-go, tab duplicate and close',
+  );
+
+  const downloadFile = path.join(app.getPath('userData'), 'download-fixture.bin');
+  let downloadIndex = 0;
+  regular.on('will-download', (_event, item) => {
+    item.setSavePath(
+      downloadIndex++ === 0
+        ? downloadFile
+        : path.join(app.getPath('userData'), 'cancel-fixture.bin'),
+    );
+  });
+  account.downloadURL(`http://127.0.0.2:${port}/download`);
+  const transfer = await until(
+    async () => (await state()).downloads.find((d) => d.received > 0 && d.status === 'progressing'),
+    'descarga con progreso',
+  );
+  await js(`document.getElementById('downloads-toggle').click()`);
+  await until(
+    () =>
+      js(
+        `!document.getElementById('downloads').hidden && document.querySelectorAll('.download-row').length === 1`,
+      ),
+    'panel descargas',
+  );
+  await call('download', { id: transfer.id, action: 'pause' });
+  await until(
+    async () => (await state()).downloads.find((d) => d.id === transfer.id)?.paused,
+    'pausar descarga',
+  );
+  const originalDialog = dialog.showMessageBox;
+  dialog.showMessageBox = (async () => ({
+    response: 0,
+    checkboxChecked: false,
+  })) as typeof dialog.showMessageBox;
+  win.close();
+  await wait(50);
+  assert.equal(win.isDestroyed(), false, 'cancelar cierre conserva ventana');
+  dialog.showMessageBox = originalDialog;
+  await call('download', { id: transfer.id, action: 'resume' });
+  await until(
+    async () => (await state()).downloads.find((d) => d.id === transfer.id)?.status === 'completed',
+    'completar descarga',
+  );
+  assert.ok(downloadCookies[0]?.includes('auth=fixture'), 'descarga propia conserva autenticación');
+  const downloaded = await readFile(downloadFile);
+  assert.equal(downloaded.length, 4 * 1024 * 1024);
+  assert.ok(
+    downloaded.every((byte) => byte === 78),
+    'archivo íntegro tras pausa/reanudación',
+  );
+  account.downloadURL(`http://127.0.0.2:${port}/download?cancel=1`);
+  const cancelled = await until(
+    async () =>
+      (await state()).downloads.find((d) => d.id !== transfer.id && d.status === 'progressing'),
+    'segunda descarga',
+  );
+  await call('download', { id: cancelled.id, action: 'cancel' });
+  await until(
+    async () =>
+      (await state()).downloads.find((d) => d.id === cancelled.id)?.status === 'cancelled',
+    'cancelar descarga',
+  );
+  await assert.rejects(
+    () => call('download', { id: '../bad', action: 'open' }),
+    'IPC de descargas valida IDs',
+  );
+  await call('clear-downloads');
+  await until(async () => (await state()).downloads.length === 0, 'limpiar registro');
+  assert.equal(
+    (await readFile(downloadFile)).length,
+    4 * 1024 * 1024,
+    'limpiar registro no borra archivos',
+  );
+  await js(`document.getElementById('downloads-close').click()`);
+  console.log(
+    'PASS real download manager: progress, pause/resume, full file integrity, cancel, close prompt and clear-without-deleting',
+  );
+
   const detected = await js(`(async () => {
     const isAntiAdblockNotice = ${isAntiAdblockNotice.toString()};
     let reports = 0;

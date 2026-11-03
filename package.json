@@ -1,8 +1,8 @@
 {
   "name": "nido-browser",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "private": true,
-  "description": "Navegador personal con sesiones efímeras y asistentes aislados",
+  "description": "Navegador personal con temas, descargas y asistentes de IA aislados",
   "author": "Nido contributors",
   "license": "MIT",
   "main": "dist/main/index.js",

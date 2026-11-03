@@ -77,7 +77,7 @@ Los permisos están denegados por defecto y los tipos admitidos requieren prompt
 nativo por sitio. En la sidebar solo se permite solicitar audio para dictado.
 Service workers permanecen desactivados en las vistas de navegación, con bloqueo
 adicional de las peticiones de sus scripts. Esto puede impedir algunas funciones
-sin conexión. Las descargas web todavía están deshabilitadas.
+sin conexión. Desde 1.0.0 se permiten descargas con diálogo nativo de guardado.
 
 Se envían DNT/GPC (los sitios pueden ignorarlos), se reduce Referer al origen y se
 usa UA estándar de Chrome. WebRTC aplica `disable_non_proxied_udp`; no oculta tu IP
@@ -161,3 +161,27 @@ local como Open WebUI; no se garantizan logins de servicios externos.
 - **Compatibilidad universal:** los controles antiabuso y políticas de terceros
   pueden rechazar Electron. Las pruebas locales no equivalen a una auditoría ni a
   validar cuentas reales de todos los servicios.
+
+## Descargas y menús (1.0.0)
+
+Las sesiones de navegación y de IA entregan sus descargas al gestor del proceso
+principal, conservando sus respectivas reglas de cookies y aislamiento. Un diálogo
+nativo pide la ruta; los nombres del servidor se reducen a un nombre base para la
+ruta sugerida. Nunca se ejecutan ni abren archivos automáticamente. El IPC de las
+acciones valida ID y operación con Zod y solo abre una ruta registrada de un archivo
+completado; no acepta rutas arbitrarias desde el renderer.
+
+Nombre, progreso y ruta elegida se guardan solo en memoria. No existe historial de
+descargas en disco ni reanudación tras reiniciar. Se limita la lista de entradas
+finalizadas para acotar memoria; las activas permanecen visibles. Borrar la lista
+no borra archivos. Los archivos descargados y posibles archivos parciales son
+escrituras deliberadas en disco, incluso en modo estricto, y no se borran mediante
+la limpieza de cookies. Al cerrar se cancelan transferencias activas; la ventana
+pide confirmación antes de salir si hay alguna. El sistema o servidor puede limitar
+la reanudación y el tratamiento de archivos parciales.
+
+Copiar solo escribe al portapapeles; «Pegar y acceder», abrir/buscar selección y
+«Guardar como» son acciones explícitas. No se visita un enlace ni se descarga un
+archivo por abrir su menú. Enlaces/imágenes del menú solo admiten HTTP(S). Se mantiene
+la acción manual de copiar para la IA, sin enviar contenido a asistentes. Los temas
+son CSS local y no descargan imágenes, fuentes ni paquetes de estilos.

@@ -43,6 +43,8 @@
         </form>
         <div id="music-controls"></div>
         <button id="ai-toggle" title="Asistentes (Ctrl/Cmd+Shift+A)">✦ IA</button
+        ><button id="downloads-toggle" aria-label="Descargas" title="Descargas (Ctrl/Cmd+J)">
+          ↓<span id="downloads-count"></span></button
         ><button id="settings-toggle" aria-label="Ajustes">⚙</button>
       </div>
       <div class="statusbar">
@@ -91,6 +93,18 @@
         <button id="settings-close" aria-label="Cerrar ajustes">×</button>
       </div>
       <div id="settings-body"></div>
+    </section>
+    <section id="downloads" hidden aria-label="Descargas">
+      <div class="settings-heading">
+        <h2 id="downloads-title">Descargas</h2>
+        <button id="downloads-close" aria-label="Cerrar descargas">×</button>
+      </div>
+      <p id="downloads-note">
+        El registro se borra al salir; los archivos guardados permanecen. Las descargas activas se
+        cancelan al cerrar Nido.
+      </p>
+      <button id="downloads-clear">Limpiar terminadas</button>
+      <div id="downloads-body"></div>
     </section>
     <div id="toast" role="status" hidden></div>
     <audio id="audio"></audio>

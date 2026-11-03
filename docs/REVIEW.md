@@ -87,3 +87,28 @@ la UI local. No se añaden dependencias, peticiones de traducción ni telemetrí
 La fixture HTTPS local también ejercita el preload/IPC de producción y prueba una
 única recarga sin borrar login. No se validó YouTube en vivo; no se promete bloquear
 todos sus anuncios. Bundle renderer: 26.400 bytes, 9.161 gzip; CSS: 8.781 bytes.
+
+## Revisión de v1.0.0
+
+Las diez paletas y gradientes son constantes CSS sin dependencias ni red. Los campos
+nuevos tienen valores predeterminados para conservar perfiles antiguos, imágenes,
+acentos y sesiones. La paleta se aplica también a barras y paneles en modo claro y
+oscuro. El renderer conserva CSP, sandbox y context isolation.
+
+Los menús reciben parámetros nativos de Electron. Enlaces e imágenes solo abren
+HTTP(S); el portapapeles se valida mediante el parser de navegación antes de «Pegar
+y acceder». Abrir un menú no navega ni descarga. Las acciones sobre pestañas usan
+sus IDs locales y no índices que puedan quedar obsoletos. Se corrigió además una
+carrera al cerrar una vista mientras su carga estaba pendiente.
+
+El gestor reemplaza la antigua denegación total de descargas. La ruta se elige en
+el diálogo nativo; el nombre sugerido se limita a un basename. El IPC valida ID y
+acción y solo abre archivos completados registrados. No abre automáticamente ni
+persiste un historial. El listado finalizado está acotado y se cancelan transferencias
+al salir. Cancelar el prompt de salida conserva la última pestaña, pues solo se
+elimina después de confirmar el cierre. El proceso habitual de limpieza de perfiles
+en memoria y escritura de cookies persistentes permanece vigente.
+
+79 pruebas unitarias y el smoke de tres procesos pasan, incluidas descargas con
+cookie propia autenticada, pausa/reanudación íntegra, cancelación y cierre real de
+la última pestaña. El ejecutable Linux empaquetado arranca. No hay nuevas dependencias.

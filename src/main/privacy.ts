@@ -86,7 +86,7 @@ export function configurePrivacy(
       })
       .catch(() => callback(false));
   });
-  ses.on('will-download', (event) => event.preventDefault());
+  // Downloads are handled by the main-process manager with a native save dialog.
   // Clear APIs are asynchronous. Serialize overlapping periodic/origin/shutdown
   // sweeps, and keep failures observable instead of treating them as success.
   let clearing = Promise.resolve();

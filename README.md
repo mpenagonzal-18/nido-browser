@@ -80,15 +80,51 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+W                        | Cerrar pestaña             |
 | Ctrl/Cmd+L                        | Seleccionar dirección      |
 | Ctrl/Cmd+R                        | Recargar                   |
+| Ctrl/Cmd+J                        | Gestor de descargas        |
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **26,40 kB JS** (9,16 kB gzip), más unos
-**8,78 kB CSS**. El main propio ronda 70 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **32,79 kB JS** (11,31 kB gzip), más unos
+**10,00 kB CSS**. El main propio ronda 83 kB; Ghostery y Zod se conservan como módulos
 de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **1,0–1,2 s** en esta máquina Linux headless con perfil de
 prueba; no es una garantía ni una medida de arranque en frío de otras plataformas.
+
+## Temas y personalización
+
+En **Ajustes → Color y fondo** hay diez temas: Bosque, Océano, Atardecer, Aurora,
+Lavanda, Rosa, Brasa, Medianoche, Dunas y Ártico. Cada tarjeta aplica su gradiente y
+la paleta de barras/paneles; el selector **Paleta de la interfaz** permite combinar
+esa paleta con una imagen local o un color sólido. **Gradiente personalizado**
+recupera la mezcla de tu acento y color del fondo. Se mantienen los modos claro,
+oscuro y automático, el desenfoque, oscurecimiento y vista previa inmediata.
+Todo se guarda localmente y se incluye al exportar/importar ajustes. La actualización
+conserva imágenes y colores existentes.
+
+## Clic derecho y pestañas
+
+- En enlaces: abrir en pestaña nueva en segundo plano, copiar dirección y guardar como.
+- En imágenes HTTP(S): abrir en pestaña nueva, copiar dirección y guardar como.
+- En texto: copiar y abrir/buscar la selección; en campos editables, deshacer,
+  rehacer, cortar, copiar, pegar y seleccionar todo según el contexto.
+- En la barra de direcciones y el buscador de inicio: **Pegar y acceder**, que
+  navega o busca usando el buscador configurado. Los esquemas peligrosos se rechazan.
+- En pestañas: nueva, duplicar, cerrar y cerrar las demás. Cerrar la última pestaña
+  cierra Nido, también con Ctrl/Cmd+W. Las sesiones permanentes se conservan.
+
+## Gestor de descargas
+
+El botón **↓** o **Ctrl/Cmd+J** abre el panel. Muestra progreso y permite pausar,
+reanudar si el servidor lo admite, cancelar, abrir un archivo completado o mostrarlo
+en su carpeta. Enlaces, adjuntos y descargas de la sidebar usan el diálogo nativo
+para elegir dónde guardar. Nunca se abren archivos automáticamente.
+
+**Limpiar terminadas** solo borra filas del panel, no archivos. El registro vive en
+memoria (hasta 100 entradas finalizadas, además de las activas) y desaparece al salir;
+los archivos guardados permanecen. No hay reanudación entre reinicios. Si cierras
+Nido con descargas activas, pide confirmar su cancelación; cancelar el cierre deja
+la pestaña y la ventana abiertas. Escape cierra el panel sin detener las descargas.
 
 ## Privacidad y bloqueo
 
@@ -102,7 +138,8 @@ almacenamiento habilitados globalmente. El modo Borrar al salir usa otra sesión
 en memoria; el modo estricto mantiene las restricciones originales como opción.
 Los terceros se filtran en cabeceras y documentos, se envía DNT/GPC, se recorta
 Referer y se limita WebRTC. Los permisos requieren confirmación por sitio y el
-historial opcional es un JSON exclusivamente local. No hay gestor de descargas web.
+historial opcional es un JSON exclusivamente local. Las descargas se guardan solo
+tras elegir una ruta en el diálogo nativo; su registro es temporal.
 
 EasyList + EasyPrivacy se empaquetan localmente. La actualización requiere pulsar
 **Actualizar listas manualmente**. Se bloquean anuncios/rastreadores de red y banners

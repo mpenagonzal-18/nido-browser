@@ -1,18 +1,19 @@
-Nido 0.1.3: idiomas y pausa automática del bloqueo en YouTube.
+Nido 1.0.0: temas completos, menús contextuales y gestor de descargas.
 
-- Español, English y Del sistema en ajustes, con cambio inmediato y persistencia local.
-- Detección de avisos visibles de antibloqueo de YouTube: pausa durante esa ejecución,
-  una recarga de la pestaña afectada e intento de conservar la posición del vídeo.
-- Indicador PAUSA y reactivación manual desde la barra; exclusiones manuales prioritarias.
-- Sin cosmética ni scriptlets en YouTube. Desactivar la opción lo excluye completamente.
-- Repositorio renombrado a mpenagonzal-18/nido-browser.
+- Diez temas de gradiente con paletas para barras y paneles, además de imagen local,
+  color sólido y gradiente personalizado. Modos claro/oscuro/automático y vista previa.
+- Clic derecho en enlaces, imágenes, selección, campos editables y pestañas.
+  «Pegar y acceder» en la barra y el buscador de inicio, usando tu buscador elegido.
+- Gestor de descargas (↓ o Ctrl/Cmd+J): progreso, pausa/reanudación, cancelación,
+  apertura manual y carpeta. Diálogo nativo para guardar, sin apertura automática.
+- Cerrar la última pestaña cierra Nido. Si hay descargas activas, pide confirmar.
+- Se conserva la configuración existente, los idiomas y los inicios de sesión.
 
-**Cambio respecto a 0.1.2:** YouTube ya no se excluye por defecto; ahora se filtra su
-red y se pausa si aparece el aviso reconocido. Se migra únicamente la lista antigua
-predeterminada, preservando exclusiones personalizadas. No garantiza eliminar todos
-los anuncios ni detectar cambios futuros del servicio. Se probó el detector con DOM
-real y avisos locales representativos, no contra YouTube en vivo.
+El registro de descargas es temporal; limpiar la lista no borra los archivos. Las
+descargas activas se cancelan al salir y no se restauran tras reiniciar. Reanudar
+depende del servidor. Los archivos descargados son escrituras deliberadas en disco,
+también en modo estricto.
 
-Las cookies y sesiones permanentes siguen activadas por defecto y no se borran al
-cambiar idioma ni al pausar el bloqueador. Sin telemetría, actualizaciones automáticas
-ni servicios de traducción. Instaladores sin firmar ni notarizar.
+Sin nuevas dependencias, telemetría ni actualizador automático. Se conservan la
+sidebar aislada y la pausa de bloqueo de YouTube de 0.1.3. Instaladores sin firmar
+ni notarizar. Consulta README.md y docs/PRIVACY.md para funcionamiento y límites.

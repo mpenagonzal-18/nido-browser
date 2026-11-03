@@ -9,7 +9,18 @@ export interface TabState {
   canBack: boolean;
   canForward: boolean;
 }
+export interface DownloadState {
+  id: string;
+  name: string;
+  received: number;
+  total: number;
+  status: 'progressing' | 'interrupted' | 'completed' | 'cancelled';
+  paused: boolean;
+  canResume: boolean;
+  path?: string;
+}
 export interface State {
+  downloads: DownloadState[];
   tabs: TabState[];
   active: string;
   sidebar: boolean;
@@ -24,6 +35,7 @@ export interface State {
 export interface Bridge {
   call(action: string, payload?: unknown): Promise<unknown>;
   onState(callback: (state: State) => void): () => void;
+  onDownloads(callback: () => void): () => void;
   onFocusAddress(callback: () => void): () => void;
 }
 declare global {

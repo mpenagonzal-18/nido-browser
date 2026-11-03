@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('nido', {
     ipcRenderer.on('nido:state', handler);
     return () => ipcRenderer.removeListener('nido:state', handler);
   },
+  onDownloads: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('nido:show-downloads', handler);
+    return () => ipcRenderer.removeListener('nido:show-downloads', handler);
+  },
   onFocusAddress: (callback: () => void) => {
     const handler = () => callback();
     ipcRenderer.on('nido:focus-address', handler);
