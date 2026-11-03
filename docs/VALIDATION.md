@@ -160,3 +160,10 @@ la interfaz para revisión visual. Las pruebas no automatizan el diálogo de sel
 de archivos ni la apertura de aplicaciones externas; se usa una ruta temporal en
 el runner para evitar interacción. La interfaz gráfica completa y los diálogos de
 Windows/macOS requieren revisión en escritorio.
+
+## Regresión de dirección enfocada (1.0.1)
+
+Una comprobación adicional con foco explícito en la barra reprodujo que «Pegar y
+acceder» navegaba pero mantenía el texto anterior hasta desenfocar. La corrección
+termina la edición antes de emitir el estado y devuelve el foco a la vista. El test
+usa clic derecho real y exige que URL de la pestaña y texto visible coincidan.

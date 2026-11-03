@@ -851,6 +851,7 @@ window.fixtureDone=false;window.attempts={};
   };
   try {
     await clipboard.writeText(`http://127.0.0.2:${port}/account?paste=1`);
+    await js(`document.getElementById('address').focus()`);
     const addressMenu = await rightClick('#address');
     const paste = addressMenu.items.find((item) => item.label === 'Pegar y acceder');
     assert.ok(paste?.enabled);
@@ -859,6 +860,11 @@ window.fixtureDone=false;window.attempts={};
       const s = await state();
       return s.tabs.find((t) => t.id === s.active)?.url.endsWith('/account?paste=1');
     }, 'pegar y acceder');
+    assert.equal(
+      await js(`document.getElementById('address').value`),
+      `http://127.0.0.2:${port}/account?paste=1`,
+      'pegar y acceder actualiza la dirección aunque el campo tenga foco',
+    );
     const before = await state();
     const tabMenu = await rightClick('.tab.active');
     assert.ok(tabMenu.items.some((item) => item.label === 'Cerrar pestaña'));

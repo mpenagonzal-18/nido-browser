@@ -1,3 +1,10 @@
+Nido 1.0.1: corrección final de «Pegar y acceder».
+
+La barra refleja inmediatamente la URL nueva aunque tuviera el foco, y lo devuelve
+al contenido tras acceder. Se añade una regresión con foco explícito y clic derecho
+real. No cambia los ajustes ni elimina sesiones. Incluye todas las novedades de
+1.0.0 descritas a continuación.
+
 Nido 1.0.0: temas completos, menús contextuales y gestor de descargas.
 
 - Diez temas de gradiente con paletas para barras y paneles, además de imagen local,

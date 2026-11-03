@@ -96,3 +96,27 @@ usa el preload/IPC de producción con HTTPS interceptado localmente para verific
 una pausa y una única recarga, sin borrar login. Comprueba traducción inmediata y
 persistencia del idioma tras reinicio. No equivale a una prueba de YouTube en vivo
 ni de interacción gráfica en Windows/macOS. Instaladores sin firma/notarización.
+
+## v1.0.0 — temas, menús y descargas
+
+Publicada el 3 de noviembre de 2026 en **mpenagonzal-18/nido-browser**. Commit
+`a4b3878e6dfb6e0db7473a97fb22b0df79159553`, tag `v1.0.0`.
+
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41651184403): **Success**, 1 min 53 s; 79 pruebas, lint, tipos, smoke y tres empaquetados.
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41651184087): **Success**, 4 min 2 s; instaladores nativos de Windows, Linux y macOS.
+- [Descargas](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.0).
+- [Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.0/Nido.Setup.1.0.0.exe).
+- [Checksums](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.0/SHA256SUMS.txt).
+
+El instalador Windows se descargó y verificó: **123.503.922 bytes**, cabecera MZ y
+SHA-256 idéntico al manifiesto de la release:
+
+```text
+0f4360e05361561d2c38b0287400e03e1a5a3e80f87ef6e704043ccac392adb7
+```
+
+El ejecutable Linux empaquetado v1.0.0 arrancó y permitió capturar temas/ajustes.
+La integración verifica autenticación propia en descargas, pausa/reanudación con
+integridad de todos los bytes, cancelación, menús nativos y cierre real de la última
+pestaña. Los diálogos interactivos y las interacciones completas de escritorio en
+Windows/macOS siguen requiriendo revisión manual. Instaladores sin firma/notarización.

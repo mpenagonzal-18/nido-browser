@@ -327,7 +327,16 @@ async function navigateTab(tab: Tab, url: string) {
 }
 async function navigate(value: string) {
   const tab = current();
-  if (tab) await navigateTab(tab, addressToUrl(value, settings.search, settings.searx));
+  if (!tab) return;
+  const url = addressToUrl(value, settings.search, settings.searx);
+  // Commit address/search editing before broadcasting the new URL. Otherwise a
+  // focused field deliberately ignores state updates and keeps the old address.
+  await win.webContents.executeJavaScript(
+    `document.getElementById('address')?.blur(); document.getElementById('search')?.blur();`,
+  );
+  if (!tabs.includes(tab)) return;
+  await navigateTab(tab, url);
+  if (active === tab.state.id) tab.view?.webContents.focus();
 }
 
 function shortcut(input: Electron.Input): boolean {
@@ -538,8 +547,7 @@ app.whenReady().then(async () => {
             openTab(url, false);
           },
           navigate: (url) => {
-            const tab = current();
-            if (tab) void navigateTab(tab, url);
+            void navigate(url).catch((error) => console.error('Navigation failed', error));
           },
         });
       else if (params.isEditable) template = editMenu(params, locale());
