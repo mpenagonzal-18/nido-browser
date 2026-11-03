@@ -4,8 +4,8 @@
     system-ui,
     -apple-system,
     sans-serif;
-  color: #e6e9e1;
-  background: #141b18;
+  color: var(--text);
+  background: var(--bg);
   --accent: #9cae87;
   --bg: #141b18;
   --surface: #202923;
@@ -515,4 +515,71 @@ html[data-theme='light'] #wallpaper {
 }
 html[lang='en'] .statusbar {
   letter-spacing: 0.5px;
+}
+
+.theme-presets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+.theme-presets button {
+  min-height: 65px;
+  color: #fff;
+  text-shadow: 0 1px 4px #000;
+  border: 2px solid transparent;
+  font-size: 12px;
+}
+.theme-presets button[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+#downloads {
+  position: fixed;
+  inset: 118px 0 0;
+  z-index: 8;
+  background: var(--bg);
+  color: var(--text);
+  padding: 30px max(24px, calc((100vw - 850px) / 2));
+  overflow: auto;
+}
+#downloads-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+#downloads-body {
+  margin-top: 24px;
+}
+.download-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  margin: 12px 0;
+  padding: 18px;
+  overflow-wrap: anywhere;
+}
+.download-row p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.download-row progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  accent-color: var(--accent);
+}
+.download-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.download-actions button,
+#downloads-clear {
+  border: 1px solid var(--line);
+}
+#downloads-count {
+  font-size: 10px;
+  margin-left: 3px;
 }

@@ -1,3 +1,4 @@
+import { COLOR_THEMES } from '../shared/themes';
 import { translate, OPTION_NAMES, type Locale } from '../shared/i18n';
 import type { Settings } from '../shared/settings';
 import { applyAppearance } from './newtab/appearance';
@@ -72,7 +73,9 @@ export function renderSettings(
       for (const option of options) {
         const el = document.createElement('option');
         el.value = option;
-        el.textContent = tr(OPTION_NAMES[option] ?? option);
+        el.textContent = tr(
+          COLOR_THEMES.find((t) => t.id === option)?.name ?? OPTION_NAMES[option] ?? option,
+        );
         input.append(el);
       }
     input.value = String(value);
@@ -111,6 +114,37 @@ export function renderSettings(
   preview.className = 'appearance-preview';
   preview.textContent = tr('Un poco de calma. Un mundo por descubrir.');
   appearance.append(preview);
+  const presets = document.createElement('div');
+  presets.className = 'theme-presets';
+  presets.setAttribute('aria-label', tr('Temas de gradiente'));
+  for (const theme of COLOR_THEMES) {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.textContent = tr(theme.name);
+    tile.style.background = theme.gradient;
+    tile.setAttribute(
+      'aria-pressed',
+      String(s.colorTheme === theme.id && s.gradientPreset === theme.id),
+    );
+    tile.onclick = () => {
+      s.colorTheme = theme.id;
+      s.gradientPreset = theme.id;
+      s.wallpaper.kind = 'gradient';
+      commit();
+    };
+    presets.append(tile);
+  }
+  appearance.append(presets);
+  field(
+    appearance,
+    'Paleta de la interfaz',
+    s.colorTheme,
+    (v) => {
+      s.colorTheme = v as Settings['colorTheme'];
+    },
+    'text',
+    COLOR_THEMES.map((t) => t.id),
+  );
   paintPreview();
   field(appearance, 'Acento', s.accent, (v) => (s.accent = v), 'color');
   field(appearance, 'Tema', s.theme, (v) => (s.theme = v as Settings['theme']), 'text', [
@@ -126,6 +160,11 @@ export function renderSettings(
     'text',
     ['gradient', 'solid', 'image'],
   );
+  button(appearance, 'Gradiente personalizado', () => {
+    s.gradientPreset = 'custom';
+    s.wallpaper.kind = 'gradient';
+    commit();
+  });
   field(appearance, 'Color del fondo', s.wallpaper.color, (v) => (s.wallpaper.color = v), 'color');
   field(appearance, 'Desenfoque', s.wallpaper.blur, (v) => (s.wallpaper.blur = Number(v)), 'range');
   field(

@@ -12,6 +12,35 @@ const webUrl = z
     }
   });
 export const SettingsSchema = z.object({
+  colorTheme: z
+    .enum([
+      'forest',
+      'ocean',
+      'sunset',
+      'aurora',
+      'lavender',
+      'rose',
+      'ember',
+      'midnight',
+      'sand',
+      'arctic',
+    ])
+    .default('forest'),
+  gradientPreset: z
+    .enum([
+      'custom',
+      'forest',
+      'ocean',
+      'sunset',
+      'aurora',
+      'lavender',
+      'rose',
+      'ember',
+      'midnight',
+      'sand',
+      'arctic',
+    ])
+    .default('custom'),
   language: z.enum(['es', 'en', 'system']).default('es'),
   youtubeAutoPause: z.boolean().default(true),
   accent: z
