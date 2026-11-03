@@ -343,14 +343,14 @@ export function renderSettings(
   );
   field(
     block,
-    'YouTube: pausar al detectar el aviso antibloqueadores',
+    'Bloquear anuncios de YouTube (pausar si impide reproducir)',
     s.youtubeAutoPause,
     (v) => (s.youtubeAutoPause = v === 'true'),
     'checkbox',
   );
   const youtubeNote = document.createElement('p');
   youtubeNote.textContent = tr(
-    'El bloqueo de YouTube se pausa para esta ejecución si aparece su aviso. Puede requerir una recarga automática; se intenta conservar la posición. Las exclusiones manuales prevalecen.',
+    'Filtra publicidad del reproductor y banners. Si YouTube muestra su aviso antibloqueo, permite anuncios para seguir viendo y lo indica en la barra. Desactivar esta opción excluye YouTube por completo. Las exclusiones manuales prevalecen.',
   );
   block.append(youtubeNote);
   field(

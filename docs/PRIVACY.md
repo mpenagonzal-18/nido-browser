@@ -93,27 +93,33 @@ manual descarga copias oficiales desde raw.githubusercontent.com, con TLS verifi
 Se bloquean recursos de publicidad/rastreo y se aplica CSS, sin ejecutar scriptlets.
 La cosmética inicial puede no cubrir banners añadidos dinámicamente.
 
-Desde 0.1.3 se filtran peticiones publicitarias de YouTube por defecto. Un preload
-con sandbox, sin API expuesta a la página, observa únicamente superficies conocidas
-de avisos/reproductor y comprueba texto y visibilidad. No lee ni envía conversaciones,
-no oculta avisos ni ejecuta scriptlets. El proceso principal valida el mensaje IPC,
-el esquema, la vista propietaria y el frame principal del dominio de YouTube.
+Desde 1.0.2 YouTube tiene un filtro propio empaquetado. Su preload con sandbox y
+context isolation instala una función limitada en el mundo de la página mediante
+`contextBridge.executeInMainWorld`. No expone Node, IPC ni APIs de Nido a la web.
+El código elimina `playerAds`, `adPlacements`, `adSlots` y `adBreakHeartbeatParams`
+de los objetos iniciales y de JSON/texto de `fetch`/XHR en endpoints YouTube
+`/youtubei/v1/player`, `/youtubei/v1/next` y `/watch?pbj=...`. Conserva vídeo,
+subtítulos, errores y metadatos HTTP; no inicia ninguna petición adicional. No
+intercepta otros endpoints ni respuestas binarias. El recorrido tiene límites de
+profundidad, tamaño y nodos. CSS local oculta contenedores publicitarios conocidos,
+sin ocultar avisos de enforcement ni controles de reproducción.
 
-Al detectar el aviso de antibloqueo, se omite por completo el motor para páginas y
-recursos de youtube.com, youtu.be, googlevideo.com, ytimg.com y youtube-nocookie.com,
-incluidos recursos de terceros iniciados por esas páginas. La pausa solo vive en
-memoria durante esa ejecución. Se recarga una vez la pestaña afectada y se intenta
-restaurar su posición; la recarga es una petición automática derivada de la página
-abierta por el usuario. No borra datos ni modifica los permisos de cookies. El usuario
-puede reactivar el bloqueo desde la barra. No se garantiza detectar cambios futuros
-del aviso ni eliminar todos los anuncios; no se ha validado contra YouTube en vivo.
+El observador del aviso antibloqueo permanece en el mundo aislado y solo examina
+superficies conocidas y visibles. El main valida esquema, dominio, frame y emisor.
+Si aparece el aviso, se omite el motor para YouTube y sus CDN, se restaura fetch/XHR,
+se retira el CSS y se desregistra el preload para documentos nuevos. Se recarga una
+vez la pestaña afectada e intenta restaurar posición. La pausa vive en memoria y
+permite anuncios deliberadamente para continuar; la barra lo indica. La recarga es
+una petición automática derivada de una página abierta por el usuario. No cambia
+permisos ni borra cookies/almacenamiento. Reactivar desde la barra recarga la página.
 
-Desactivar esta opción excluye YouTube completamente y no instala su detector.
-Las exclusiones manuales siempre prevalecen. La actualización migra solo la lista
-predeterminada antigua de cinco dominios a la nueva opción; conserva exclusiones
-personalizadas. No hay cosmética en YouTube. El tipo `media` no se bloquea en otros
-sitios, pero no es posible separar perfectamente scripts de banners y vídeo.
-El contador solo cuenta bloqueos de red y no persiste.
+Desactivar **Bloquear anuncios de YouTube (pausar si impide reproducir)** excluye
+YouTube por completo. Las exclusiones manuales prevalecen. La sidebar de proveedores
+sigue excluida como antes. No se descarga código de filtrado desde Internet; el motor
+no ejecuta scriptlets de terceros. El contador solo incluye bloqueos de red, no los
+campos del reproductor eliminados. No se ha probado contra YouTube en vivo en este
+entorno: cambios del servicio, formatos nuevos o publicidad integrada en el flujo
+pueden eludir el filtro. No se promete bloqueo universal ni evitar toda detección.
 
 El idioma de Nido se guarda localmente, sin peticiones de traducción. Cambiarlo no
 modifica el idioma, cookies ni almacenamiento de las páginas visitadas.

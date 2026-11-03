@@ -1,6 +1,6 @@
 {
   "name": "nido-browser",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Navegador personal con temas, descargas y asistentes de IA aislados",
   "author": "Nido contributors",

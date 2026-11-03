@@ -8,12 +8,15 @@ import { storageState, seedStorage, nativeWorkerAttempt } from './integration/st
 import { isAntiAdblockNotice, observeYoutubeNotice } from '../src/shared/youtube';
 import type { State } from '../src/shared/types';
 const started = Date.now();
+let lastWait = 'startup';
+let lastScript = '';
 app.setPath('userData', process.env.NIDO_SMOKE_PROFILE!);
 app.getAppPath = () => path.resolve('.');
 // Load the production build, not a substitute implementation.
 createRequire(path.join(process.cwd(), 'dist/smoke.cjs'))('./main/index.js');
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until<T>(fn: () => T | Promise<T>, label: string): Promise<NonNullable<T>> {
+  lastWait = label;
   for (let i = 0; i < 400; i++) {
     const value = await fn();
     if (value) return value as NonNullable<T>;
@@ -22,7 +25,7 @@ async function until<T>(fn: () => T | Promise<T>, label: string): Promise<NonNul
   throw new Error(`Tiempo agotado: ${label}`);
 }
 const deadline = setTimeout(() => {
-  console.error('Smoke timeout');
+  console.error('Smoke timeout', { lastWait, lastScript });
   app.exit(1);
 }, 90000);
 async function run() {
@@ -34,7 +37,10 @@ async function run() {
       ),
     'ventana interna',
   );
-  const js = (code: string) => win.webContents.executeJavaScript(code);
+  const js = (code: string) => {
+    lastScript = code.slice(0, 180);
+    return win.webContents.executeJavaScript(code);
+  };
   const call = (action: string, payload?: unknown) =>
     js(`window.nido.call(${JSON.stringify(action)},${JSON.stringify(payload) ?? 'undefined'})`);
   const state = (): Promise<State> =>
@@ -1002,26 +1008,105 @@ window.fixtureDone=false;window.attempts={};
   // Intercept HTTPS in the test profile: exercise the real sandboxed YouTube
   // preload and IPC without contacting YouTube or any third-party server.
   let youtubeLoads = 0;
-  regular.protocol.handle('https', () => {
+  const adPayload = {
+    playabilityStatus: { status: 'OK' },
+    videoDetails: { videoId: 'fixture', title: 'Real video' },
+    streamingData: { formats: [{ url: 'https://video.test/content' }] },
+    captions: { playerCaptionsTracklistRenderer: { captionTracks: [{ languageCode: 'es' }] } },
+    adPlacements: [{ ad: 'preroll' }],
+    playerAds: [{ ad: 'video' }],
+    adSlots: [{ ad: 'midroll' }],
+  };
+  regular.protocol.handle('https', (request) => {
+    const url = new URL(request.url);
+    if (url.pathname === '/watch' && url.searchParams.has('pbj'))
+      return new Response(")]}'\n" + JSON.stringify(adPayload), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    if (url.pathname.startsWith('/youtubei/') || url.pathname === '/unrelated')
+      return new Response(JSON.stringify(adPayload), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     youtubeLoads++;
     return new Response(
-      '<!doctype html><style>ytd-enforcement-message-view-model{display:block;width:500px;height:100px}</style><ytd-enforcement-message-view-model>Ad blockers violate YouTube terms of service</ytd-enforcement-message-view-model>',
+      `<!doctype html><script>var ytInitialPlayerResponse = ${JSON.stringify(adPayload)}; var ytInitialData = {contents:{adSlots:[1], video:'keep'}};</script><div id="player-ads">Banner</div><div id="notice"></div>`,
       { headers: { 'Content-Type': 'text/html' } },
     );
   });
   try {
     await call('navigate', 'https://www.youtube.com/watch?v=local-fixture');
+    const youtube = await until(
+      () =>
+        webContents
+          .getAllWebContents()
+          .find((w) => w.getURL().includes('watch?v=local-fixture') && !w.isLoading()),
+      'fixture reproductor',
+    );
+    const probe = `async () => {
+      const initial = window.ytInitialPlayerResponse;
+      const fetched = await fetch('/youtubei/v1/player', {method:'POST'});
+      const copied = fetched.clone();
+      const json = await fetched.json();
+      const text = JSON.parse(await copied.text());
+      const next = await (await fetch('/youtubei/v1/next')).json();
+      const pbj = JSON.parse((await (await fetch('/watch?pbj=1')).text()).slice(5));
+      const unrelated = await (await fetch('/unrelated')).json();
+      const xhr = await new Promise((resolve,reject) => { const r = new XMLHttpRequest(); r.open('POST','/youtubei/v1/player'); r.responseType='json'; r.onload=()=>resolve(r.response); r.onerror=reject; r.send('{}'); });
+      const xhrText = await new Promise((resolve,reject) => { const r = new XMLHttpRequest(); r.open('POST','/youtubei/v1/player'); r.onload=()=>resolve(JSON.parse(r.responseText)); r.onerror=reject; r.send('{}'); });
+      return { initial,json,text,next,pbj,xhr,xhrText,unrelated, bootstrap:window.ytInitialData, banner:getComputedStyle(document.getElementById('player-ads')).display, node:typeof window.require, bridge:typeof window.nido, status:fetched.status, bodyUsed:fetched.bodyUsed };
+    }`;
+    const filtered = await youtube.executeJavaScript(`(${probe})()`);
+    for (const name of ['initial', 'json', 'text', 'next', 'pbj', 'xhr', 'xhrText']) {
+      assert.equal(filtered[name].adPlacements, undefined, name + ' removes ad placements');
+      assert.equal(filtered[name].playerAds, undefined, name + ' removes player ads');
+      assert.equal(filtered[name].adSlots, undefined, name + ' removes midrolls');
+      assert.deepEqual(
+        filtered[name].streamingData,
+        adPayload.streamingData,
+        name + ' preserves content streams',
+      );
+      assert.deepEqual(filtered[name].captions, adPayload.captions, name + ' preserves captions');
+    }
+    assert.deepEqual(filtered.bootstrap, { contents: { video: 'keep' } });
+    assert.deepEqual(filtered.unrelated, adPayload, 'unrelated endpoints unchanged');
+    assert.equal(filtered.banner, 'none');
+    assert.equal(filtered.node, 'undefined');
+    assert.equal(filtered.bridge, 'undefined');
+    assert.equal(filtered.status, 200);
+    assert.equal(filtered.bodyUsed, true);
+    assert.equal((await state()).youtubePaused, false, 'ads do not cause an automatic pause');
+    await youtube.executeJavaScript(
+      `document.getElementById('notice').innerHTML='<ytd-enforcement-message-view-model style="display:block;width:500px;height:100px">Ad blockers violate YouTube terms of service</ytd-enforcement-message-view-model>'`,
+    );
     await until(async () => (await state()).youtubePaused, 'pausa desde preload real de YouTube');
     await until(() => youtubeLoads >= 2, 'una recarga con bloqueo pausado');
     await wait(1000);
     assert.equal(youtubeLoads, 2, 'sin bucle de recargas del aviso');
+    const bypass = await youtube.executeJavaScript(`(${probe})()`);
+    for (const name of ['initial', 'json', 'text', 'next', 'pbj', 'xhr', 'xhrText'])
+      assert.deepEqual(bypass[name], adPayload, 'pause bypasses ' + name);
+    assert.notEqual(bypass.banner, 'none');
     assert.equal((await regular.cookies.get({ name: 'auth' })).length, 1);
+    await call('settings', { ...(await state()).settings, youtubeAutoPause: false });
+    await until(() => !youtube.isLoading(), 'opción YouTube desactivada');
+    const disabled = await youtube.executeJavaScript(`(${probe})()`);
+    assert.deepEqual(disabled.json, adPayload);
+    await call('settings', {
+      ...(await state()).settings,
+      youtubeAutoPause: true,
+      videoExclusions: ['youtube.com'],
+    });
+    await until(() => !youtube.isLoading(), 'exclusión manual');
+    const excluded = await youtube.executeJavaScript(`(${probe})()`);
+    assert.deepEqual(excluded.initial, adPayload);
+    assert.notEqual(excluded.banner, 'none');
     await call('navigate', `http://127.0.0.2:${port}/account`);
+    await call('settings', { ...(await state()).settings, videoExclusions: [] });
   } finally {
     regular.protocol.unhandle('https');
   }
   console.log(
-    'PASS production YouTube preload and IPC: automatic pause, one reload, no session deletion, all HTTPS served locally',
+    'PASS YouTube player filtering: initial response, fetch JSON/text/clone, XHR JSON/text, bootstrap ads, banner CSS; streams/captions preserved, pause and exclusions bypass everything; all HTTPS local',
   );
   server.close();
   console.log(

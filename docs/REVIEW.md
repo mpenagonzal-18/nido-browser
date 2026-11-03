@@ -112,3 +112,22 @@ en memoria y escritura de cookies persistentes permanece vigente.
 79 pruebas unitarias y el smoke de tres procesos pasan, incluidas descargas con
 cookie propia autenticada, pausa/reanudación íntegra, cancelación y cierre real de
 la última pestaña. El ejecutable Linux empaquetado arranca. No hay nuevas dependencias.
+
+## v1.0.2 — corrección del bloqueo de YouTube
+
+Se reconoce la carencia anterior: filtrar red y pausar ante un aviso no retira los
+datos publicitarios del reproductor. Se añade un filtro empaquetado en su mundo de
+página, sin Node/IPC ni fuentes de código remotas. Solo inspecciona globals concretos
+y endpoints de YouTube player/next/PBJ, y elimina cuatro nombres de campos conocidos.
+No modifica streams, subtítulos ni estado de reproducción; respeta respuestas no
+relacionadas, cuerpos binarios, errores, estado y metadatos de fetch/XHR.
+
+Las estructuras se recorren con límites y protección frente a ciclos/getters que
+fallen. No se usa eval ni se exponen APIs privilegiadas. La pausa restaura los hooks,
+retira CSS y desregistra el preload; las exclusiones evitan instalarlo. La interfaz
+explica que PAUSA permite publicidad y que el contador mide solo bloqueos de red.
+No se promete bloqueo universal: las pruebas locales no equivalen a YouTube en vivo.
+
+Una ejecución del smoke agotó el tiempo antes de llegar a YouTube. Se añadieron
+diagnósticos del último paso/script en el timeout; la reejecución completa pasó,
+incluida la fixture PBJ. Se mantienen los límites de tiempo y el sandbox.

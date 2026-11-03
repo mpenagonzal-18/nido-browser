@@ -167,3 +167,24 @@ Una comprobación adicional con foco explícito en la barra reprodujo que «Pega
 acceder» navegaba pero mantenía el texto anterior hasta desenfocar. La corrección
 termina la edición antes de emitir el estado y devuelve el foco a la vista. El test
 usa clic derecho real y exige que URL de la pestaña y texto visible coincidan.
+
+## v1.0.2 — filtrado de datos publicitarios del reproductor
+
+La fixture HTTPS local de YouTube usa el preload de producción desde el inicio del
+documento. Incluye `ytInitialPlayerResponse`, `ytInitialData`, fetch JSON/texto/clone,
+XHR JSON/texto y PBJ con prefijo de seguridad. Se comprueba ausencia de los cuatro
+campos publicitarios soportados y conservación exacta de streams y subtítulos.
+Un endpoint no relacionado conserva sus anuncios, lo que verifica el ámbito limitado.
+El CSS oculta el contenedor de banner, pero permite mostrar el aviso antibloqueo.
+
+La pausa desregistra el preload, retira CSS y recarga una vez: todos los probes vuelven
+a devolver la publicidad original y el banner visible. Desactivar el ajuste o añadir
+una exclusión manual también conserva los datos originales. El test verifica que no
+hay API Nido ni `require` en el mundo de la página y que no se borra la cookie de login.
+79 pruebas unitarias, lint y tipos correctos; el smoke completo sigue cubriendo temas,
+menús, descargas autenticadas, perfiles, reinicios y cierre de la última pestaña.
+
+**Alcance:** no se reproduce un anuncio real ni se ha validado el servicio YouTube en
+vivo: el entorno solo permite destinos de red autorizados y YouTube no está incluido.
+Se verifica el mecanismo sobre respuestas representativas; formatos nuevos, respuestas
+binarias o publicidad cosida al flujo de vídeo pueden quedar fuera del filtro.

@@ -153,10 +153,10 @@ export const ENGLISH: Record<string, string> = {
   'Bloqueo de banners': 'Ad blocking',
   'EasyList + EasyPrivacy locales. No se descargan listas al arrancar. Las exclusiones evitan cualquier consulta al motor y cualquier inyección del bloqueador en esos dominios.':
     'Local EasyList + EasyPrivacy. Lists are never downloaded at startup. Manual exclusions bypass the filtering engine and ad-blocker injection on those domains.',
-  'YouTube: pausar al detectar el aviso antibloqueadores':
-    'YouTube: pause when an anti-adblock notice is detected',
-  'El bloqueo de YouTube se pausa para esta ejecución si aparece su aviso. Puede requerir una recarga automática; se intenta conservar la posición. Las exclusiones manuales prevalecen.':
-    'YouTube blocking pauses for this run if its notice appears. One automatic reload may be needed; playback position is restored when possible. Manual exclusions take priority.',
+  'Bloquear anuncios de YouTube (pausar si impide reproducir)':
+    'Block YouTube ads (pause if playback is blocked)',
+  'Filtra publicidad del reproductor y banners. Si YouTube muestra su aviso antibloqueo, permite anuncios para seguir viendo y lo indica en la barra. Desactivar esta opción excluye YouTube por completo. Las exclusiones manuales prevalecen.':
+    'Filters player advertising and banners. If YouTube shows an anti-adblock notice, ads are allowed so playback can continue, and the toolbar shows the pause. Turning this off bypasses YouTube entirely. Manual exclusions take priority.',
   'Exclusiones de vídeo (separadas por comas)': 'Video exclusions (comma-separated domains)',
   'Actualizar listas manualmente': 'Update filter lists manually',
   'Configuración local': 'Local configuration',
@@ -184,10 +184,11 @@ export const ENGLISH: Record<string, string> = {
   'Sin cookies': 'No cookies',
   'Cerrar {title}': 'Close {title}',
   PAUSA: 'PAUSED',
+  'Filtro del reproductor activo. El contador solo incluye peticiones bloqueadas.':
+    'Player filter active. The counter only includes blocked network requests.',
   'Bloqueo pausado en YouTube. Pulsa para reactivarlo.':
     'Blocking paused on YouTube. Click to resume.',
-  'Bloqueo pausado en YouTube para continuar viendo.':
-    'Blocking paused on YouTube so you can keep watching.',
+  'YouTube: bloqueo pausado; se permiten anuncios.': 'YouTube: blocking paused; ads are allowed.',
   'Copiar texto seleccionado para la IA': 'Copy selected text for AI',
   'Copiar URL de la página actual': 'Copy current page URL',
   'Permiso por sitio': 'Site permission',

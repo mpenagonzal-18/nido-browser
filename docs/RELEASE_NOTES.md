@@ -1,26 +1,18 @@
-Nido 1.0.1: corrección final de «Pegar y acceder».
+Nido 1.0.2: filtrado del reproductor de YouTube, además del bloqueo de red.
 
-La barra refleja inmediatamente la URL nueva aunque tuviera el foco, y lo devuelve
-al contenido tras acceder. Se añade una regresión con foco explícito y clic derecho
-real. No cambia los ajustes ni elimina sesiones. Incluye todas las novedades de
-1.0.0 descritas a continuación.
+La versión anterior solo filtraba peticiones y pausaba ante el aviso antibloqueo;
+no retiraba los datos publicitarios del reproductor. Esta versión añade un filtro
+local de sus objetos iniciales y respuestas fetch/XHR, junto con CSS de banners.
+Conserva streams de vídeo, subtítulos, sesiones y configuración.
 
-Nido 1.0.0: temas completos, menús contextuales y gestor de descargas.
+- Pausa automática y exclusiones desactivan también el nuevo filtro y su CSS.
+- La barra aclara que PAUSA permite anuncios; el contador solo mide bloqueos de red.
+- El ajuste se llama «Bloquear anuncios de YouTube (pausar si impide reproducir)».
+- Sin dependencias ni peticiones de red adicionales; no se descargan scripts de terceros.
 
-- Diez temas de gradiente con paletas para barras y paneles, además de imagen local,
-  color sólido y gradiente personalizado. Modos claro/oscuro/automático y vista previa.
-- Clic derecho en enlaces, imágenes, selección, campos editables y pestañas.
-  «Pegar y acceder» en la barra y el buscador de inicio, usando tu buscador elegido.
-- Gestor de descargas (↓ o Ctrl/Cmd+J): progreso, pausa/reanudación, cancelación,
-  apertura manual y carpeta. Diálogo nativo para guardar, sin apertura automática.
-- Cerrar la última pestaña cierra Nido. Si hay descargas activas, pide confirmar.
-- Se conserva la configuración existente, los idiomas y los inicios de sesión.
-
-El registro de descargas es temporal; limpiar la lista no borra los archivos. Las
-descargas activas se cancelan al salir y no se restauran tras reiniciar. Reanudar
-depende del servidor. Los archivos descargados son escrituras deliberadas en disco,
-también en modo estricto.
-
-Sin nuevas dependencias, telemetría ni actualizador automático. Se conservan la
-sidebar aislada y la pausa de bloqueo de YouTube de 0.1.3. Instaladores sin firmar
-ni notarizar. Consulta README.md y docs/PRIVACY.md para funcionamiento y límites.
+Pruebas con Electron real y HTTPS local: arranque, fetch JSON/texto/clone, XHR JSON/texto,
+endpoints no relacionados intactos, banners, pausa y exclusiones. No se ha podido
+validar YouTube en vivo desde este entorno. No se garantiza bloquear todos los anuncios,
+especialmente nuevos formatos o publicidad integrada en el propio flujo de vídeo.
+La pausa permite anuncios deliberadamente cuando YouTube bloquea la reproducción.
+Instaladores sin firma ni notarización.

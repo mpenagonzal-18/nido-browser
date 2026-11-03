@@ -189,10 +189,14 @@ function render() {
       ? 'OFF'
       : String(tab?.blocked ?? 0);
   $('blocking').title = tr(
-    pausedYoutube ? 'Bloqueo pausado en YouTube. Pulsa para reactivarlo.' : 'Bloqueo en este sitio',
+    pausedYoutube
+      ? 'Bloqueo pausado en YouTube. Pulsa para reactivarlo.'
+      : isYoutubePage(tab?.url ?? '') && !state.blockingDisabled
+        ? 'Filtro del reproductor activo. El contador solo incluye peticiones bloqueadas.'
+        : 'Bloqueo en este sitio',
   );
   $('youtube-status').hidden = !pausedYoutube;
-  $('youtube-status').textContent = tr('Bloqueo pausado en YouTube para continuar viendo.');
+  $('youtube-status').textContent = tr('YouTube: bloqueo pausado; se permiten anuncios.');
   renderSidebar();
   $('http-warning').hidden = !tab?.url.startsWith('http:');
 }

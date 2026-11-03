@@ -84,9 +84,9 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **32,79 kB JS** (11,31 kB gzip), más unos
+Bundle renderer medido con esbuild: **33,21 kB JS** (11,44 kB gzip), más unos
 **10,00 kB CSS**. El main propio ronda 83 kB; Ghostery y Zod se conservan como módulos
-de ejecución. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
+de ejecución. El preload específico de YouTube ocupa unos 9,64 kB adicionales. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **1,0–1,2 s** en esta máquina Linux headless con perfil de
 prueba; no es una garantía ni una medida de arranque en frío de otras plataformas.
@@ -143,22 +143,31 @@ tras elegir una ruta en el diálogo nativo; su registro es temporal.
 
 EasyList + EasyPrivacy se empaquetan localmente. La actualización requiere pulsar
 **Actualizar listas manualmente**. Se bloquean anuncios/rastreadores de red y banners
-por CSS; no se ejecutan scriptlets. El contador ◈ es por pestaña, solo en memoria;
+por CSS; no se ejecutan scriptlets de las listas. El contador ◈ es por pestaña, solo en memoria;
 pulsarlo desactiva/reactiva el bloqueo del sitio actual para esta ejecución.
 
-**YouTube y pausa automática:** por defecto se filtran peticiones publicitarias de
-YouTube. Si un aviso visible de YouTube indica que el bloqueador impide continuar,
-Nido pausa el bloqueo para YouTube y sus CDN durante esa ejecución, recarga una vez
-la pestaña afectada e intenta recuperar la posición del vídeo. Muestra «PAUSA» en
-la barra; pulsa el botón del bloqueador para reintentarlo. No borra cookies ni cierra
-sesiones. No inyecta cosmética ni scriptlets en YouTube: solo un detector local del
-aviso. No garantiza eliminar todos los anuncios ni reconocer futuros cambios de
-YouTube. La prueba usa avisos locales representativos, no el servicio real.
+**YouTube (desde 1.0.2):** además de filtrar peticiones, Nido elimina los campos
+publicitarios conocidos (`playerAds`, `adPlacements`, `adSlots` y
+`adBreakHeartbeatParams`) de los datos iniciales del reproductor y de las respuestas
+JSON/texto de sus endpoints `player`/`next` mediante fetch y XHR. Incluye CSS para
+banners identificados. Este filtro propio está empaquetado con Nido; no se descarga
+ni ejecuta código de listas de terceros. No cambia los datos de vídeo ni subtítulos.
 
-Puedes desactivar **YouTube: pausar al detectar el aviso antibloqueadores** para
-excluir YouTube por completo, o añadir dominios a las exclusiones manuales; estas
-prevalecen y desactivan el detector en esos dominios. Fuera de YouTube no se bloquea
-el tipo de recurso `media`. Las listas no distinguen perfectamente banners y vídeo.
+Si YouTube muestra su aviso antibloqueo, se pausa todo el bloqueo de YouTube durante
+esa ejecución y se recarga una vez, intentando conservar la posición. **PAUSA significa
+que se permiten anuncios** para poder continuar; pulsa el botón para reintentarlo.
+No borra cookies ni cierra sesiones. El contador solo suma peticiones bloqueadas,
+no los campos publicitarios eliminados, así que cero no implica que el filtro esté apagado.
+
+En ajustes, **Bloquear anuncios de YouTube (pausar si impide reproducir)** activa
+este comportamiento; desactivarlo excluye YouTube completamente. Las exclusiones
+manuales prevalecen y evitan filtros e inyecciones. Fuera de YouTube no se bloquea
+el tipo de recurso `media`.
+
+**Límites:** se prueba con fixtures locales bajo HTTPS interceptado, usando el preload
+real. Este entorno no permite validar YouTube en vivo. No se garantiza eliminar todos
+los anuncios: formatos nuevos, respuestas binarias y anuncios cosidos al propio flujo
+de vídeo pueden quedar fuera. La pausa de compatibilidad permite anuncios deliberadamente.
 
 ## Idiomas
 

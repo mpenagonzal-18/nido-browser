@@ -46,7 +46,7 @@ export class Blocking {
       if (id) ses.unregisterPreloadScript(id);
       this.preloadIds.set(ses, '');
     }
-    if (!this.getSettings().youtubeAutoPause) return;
+    if (!this.getSettings().youtubeAutoPause || this.youtubePaused) return;
     for (const ses of this.preloadIds.keys()) {
       const excludeMatches = this.getSettings().videoExclusions.flatMap((domain) => [
         `http://${domain}/*`,
@@ -72,10 +72,12 @@ export class Blocking {
   pauseYoutube(): boolean {
     if (this.youtubePaused) return false;
     this.youtubePaused = true;
+    this.refreshYoutube();
     return true;
   }
   resumeYoutube() {
     this.youtubePaused = false;
+    this.refreshYoutube();
   }
   exempt(url: string, sidebar = false) {
     return (
@@ -134,7 +136,7 @@ export class Blocking {
     if (
       !this.engine ||
       this.exempt(url, sidebar) ||
-      isYoutubePage(url) || // Never hide the enforcement notice or inject YouTube scriptlets.
+      isYoutubePage(url) || // YouTube has a dedicated, bundled preload; skip generic engine cosmetics.
       !/^https?:/.test(url) ||
       contents.isDestroyed()
     )
