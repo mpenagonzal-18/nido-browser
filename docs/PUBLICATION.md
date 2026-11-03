@@ -120,3 +120,26 @@ La integración verifica autenticación propia en descargas, pausa/reanudación 
 integridad de todos los bytes, cancelación, menús nativos y cierre real de la última
 pestaña. Los diálogos interactivos y las interacciones completas de escritorio en
 Windows/macOS siguen requiriendo revisión manual. Instaladores sin firma/notarización.
+
+## v1.0.1 — dirección visible tras «Pegar y acceder»
+
+Corrección publicada el 3 de noviembre de 2026, sin reemplazar el tag ni los
+instaladores de v1.0.0. Commit `2bf038c4eb5b01c9f022f472bfd07794ce090940`.
+
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41652305703): **Success**, 4 min 26 s; checks (1 min 23 s), tres instaladores nativos y publicación.
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41652300636): comprobaciones correctas (1 min 43 s); el empaquetado adicional de macOS estaba en cola al revisar. La release sí completó los tres empaquetados.
+- [Windows .exe recomendado](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.1/Nido.Setup.1.0.1.exe).
+- [macOS, Linux y resto de archivos](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.1).
+- [Checksums](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.1/SHA256SUMS.txt).
+
+Se reprodujo y corrigió el caso de barra enfocada que mantenía el texto anterior
+tras acceder desde el menú. La regresión exige que texto visible y URL de la pestaña
+coincidan; el foco vuelve al contenido. Pasan las 79 pruebas, lint, tipos y la
+integración completa con descargas autenticadas, reinicios y cierre de última pestaña.
+
+El `.exe` público se descargó y validó como PE (MZ y firma PE), **123.504.158 bytes**,
+SHA-256 idéntico al manifiesto:
+
+```text
+16c5988004daf66387da7736bebf90576b03f05052bdadbf2bca78292a139617
+```
