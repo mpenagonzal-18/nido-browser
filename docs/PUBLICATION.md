@@ -143,3 +143,28 @@ SHA-256 idéntico al manifiesto:
 ```text
 16c5988004daf66387da7736bebf90576b03f05052bdadbf2bca78292a139617
 ```
+
+## v1.0.2 — filtrado del reproductor de YouTube
+
+Publicada el 3 de noviembre de 2026. Commit
+`d0596c24e806e97558a4b8c8261ccfc9313cc3c9`, tag `v1.0.2`.
+
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41668781358): **Success**, 1 min 43 s; 79 pruebas, lint, tipos, integración Electron y tres empaquetados.
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41668785431): **Success**, 4 min 8 s; checks, tres instaladores nativos y publicación.
+- [Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.2/Nido.Setup.1.0.2.exe).
+- [macOS/Linux y otros archivos](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.2).
+- [SHA-256](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.2/SHA256SUMS.txt).
+
+El `.exe` público se descargó y verificó contra el manifiesto, con MZ y firma PE:
+**123.506.064 bytes**, SHA-256:
+
+```text
+87448bc49feecfc6fd961559700658865f09f7bd23b7a6c50c4c20649388973d
+```
+
+La prueba de producción verifica datos iniciales, fetch JSON/texto/clone, XHR,
+PBJ con prefijo, conservación de streams/subtítulos, CSS y retirada del filtrado al
+pausar o excluir. Es una prueba sobre respuestas locales representativas bajo URL
+YouTube interceptada; no se ha validado publicidad del servicio en vivo. Formatos
+nuevos o publicidad cosida al flujo pueden eludirla. PAUSA permite publicidad de
+forma deliberada para continuar. No se afirma bloqueo universal.
