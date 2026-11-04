@@ -168,3 +168,30 @@ pausar o excluir. Es una prueba sobre respuestas locales representativas bajo UR
 YouTube interceptada; no se ha validado publicidad del servicio en vivo. Formatos
 nuevos o publicidad cosida al flujo pueden eludirla. PAUSA permite publicidad de
 forma deliberada para continuar. No se afirma bloqueo universal.
+
+## v1.0.3 — ventanas OAuth y ayuda de rechazo Google
+
+Publicada el 4 de noviembre de 2026. Commit
+`07cda71dabce1cc9104cc026c3a0903084c04bca`, tag `v1.0.3`.
+
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41814298544): **Success**, 1 min 48 s; 84 pruebas, lint, tipos, integración y tres empaquetados.
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/41814335240): **Success**, 4 min 21 s; comprobaciones, tres instaladores nativos y publicación.
+- [Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.3/Nido.Setup.1.0.3.exe).
+- [macOS/Linux y resto de archivos](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.3).
+- [Checksums](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.3/SHA256SUMS.txt).
+
+Se descargó el instalador público y se verificaron tamaño **123.510.199 bytes**,
+MZ/firma PE y SHA-256 idéntico al manifiesto:
+
+```text
+0a605e2f5978e6332534afd7c5f5cffb194823ff2bbcd8e0c907ba2821d75b94
+```
+
+La integración valida un flujo OAuth local con popup, sesión propia, POST y
+opener/postMessage; CORS y Node bloqueados aunque la página solicite preferencias
+inseguras. Prueba el aviso Google simulado en pestaña y popup, su explicación una
+sola vez, el destino externo fijo bajo confirmación y la exclusión de identidad del
+historial opcional. No se usaron cuentas Google reales ni se ha demostrado que
+Google admita Nido. El rechazo del proveedor puede persistir; la sesión del navegador
+del sistema no se transfiere a Nido. No se promete resolver esa restricción ni se
+relajan sandbox, TLS o la política de cookies de terceros. Instaladores sin firma.
