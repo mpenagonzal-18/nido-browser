@@ -188,3 +188,25 @@ menús, descargas autenticadas, perfiles, reinicios y cierre de la última pesta
 vivo: el entorno solo permite destinos de red autorizados y YouTube no está incluido.
 Se verifica el mecanismo sobre respuestas representativas; formatos nuevos, respuestas
 binarias o publicidad cosida al flujo de vídeo pueden quedar fuera del filtro.
+
+## v1.0.3 — acceso OAuth y rechazo de Google
+
+84 pruebas unitarias, incluyendo límites de dominio, esquemas y preferencias de
+popups. La integración abre un popup nativo en un origen loopback distinto desde
+el opener real, envía un formulario POST, conserva la cookie propia y devuelve un
+mensaje al opener. Comprueba que Node y la API Nido no están disponibles y que CORS
+sigue bloqueando lecturas de otro origen aunque la página pida `webSecurity=no`.
+Se comprueban título de origen, cierre sin destruir el opener y rechazo de file:.
+
+Una fixture bajo el origen Google interceptado localmente prueba la detección de
+su URL de rechazo y la ayuda. El destino externo se captura con un doble de shell:
+cancelar no abre nada y confirmar solo abre la URL fija de cuentas Google, nunca
+el parámetro `continue` no confiable. No se usaron cuentas Google ni se ha demostrado
+que el servidor real acepte Nido. Es compatibilidad de popups, no certificación.
+
+Se estabiliza la comprobación de barridas estrictas: el runner observa que termina
+la llamada nativa real de limpieza antes de enumerar IndexedDB/Cache, evitando una
+carrera de enumeración concurrente con borrado. No se desactivan guardas ni sandbox.
+
+La fixture también comprueba la ayuda una sola vez en un popup rechazado, incluso
+tras recargar, y que las URLs de identidad no se añaden al historial opcional.

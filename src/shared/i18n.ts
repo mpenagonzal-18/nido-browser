@@ -60,6 +60,16 @@ export const ENGLISH: Record<string, string> = {
   Copiar: 'Copy',
   Pegar: 'Paste',
   'Seleccionar todo': 'Select all',
+  'Google: opciones de acceso': 'Google: sign-in options',
+  'Google no admite este acceso': 'Google does not support this sign-in',
+  'Google puede rechazar navegadores integrados como Electron aunque la conexión HTTPS sea válida.':
+    'Google may reject embedded browsers such as Electron even with a valid HTTPS connection.',
+  'Nido mantiene sandbox, aislamiento y validación de certificados. Abrir Google en el navegador del sistema permite continuar allí; esa sesión no se transfiere a Nido. No se importan cookies ni contraseñas.':
+    'Nido keeps sandboxing, isolation and certificate validation enabled. Opening Google in your system browser lets you continue there; that session is not transferred to Nido. Cookies and passwords are not imported.',
+  'Volver a Nido': 'Return to Nido',
+  'Abrir Google en el navegador del sistema': 'Open Google in your system browser',
+  'Autenticación: recursos sin filtrar; cookies de terceros bloqueadas.':
+    'Authentication: resources are unfiltered; third-party cookies remain blocked.',
   Idioma: 'Language',
   'Del sistema': 'System default',
   'Idioma de la interfaz': 'Interface language',

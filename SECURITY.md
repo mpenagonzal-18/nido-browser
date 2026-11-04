@@ -24,3 +24,12 @@ ni IPC. El aviso antibloqueo se detecta desde el mundo aislado y el main valida 
 emisor/frame/dominio. Las exclusiones y la pausa retiran esa intervención. Las
 páginas pueden cambiar o evitar el filtrado de su propio JavaScript; no se considera
 una frontera de seguridad ni se garantiza bloquear todos los formatos de publicidad.
+
+Las ventanas OAuth usan preferencias forzadas seguras incluso ante opciones
+`window.open` maliciosas, sin preload de la interfaz. Admiten HTTP(S) y about:blank
+para el arranque heredado, y deniegan esquemas como file, data y javascript. Las
+restricciones de Chromium, HTTPS, CORS y validación de certificados permanecen.
+La ventana interna no permite crear ventanas desde su contenido. Los popups muestran
+su origen en el título nativo, están acotados y se destruyen antes de limpiar datos.
+Google puede rechazar un navegador integrado aunque cumpla estas medidas: no se
+falsea una certificación ni se prometen accesos a un proveedor que no lo admita.

@@ -21,6 +21,7 @@ await Promise.all([
       'src/preload/temporary-site.ts',
       'src/preload/regular.ts',
       'src/preload/youtube.ts',
+      'src/preload/popup.ts',
     ],
     outdir: 'dist/preload',
     bundle: true,

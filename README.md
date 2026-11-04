@@ -84,12 +84,41 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 | Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
 | Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
 
-Bundle renderer medido con esbuild: **33,21 kB JS** (11,44 kB gzip), más unos
-**10,00 kB CSS**. El main propio ronda 83 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **34,60 kB JS** (11,94 kB gzip), más unos
+**10,00 kB CSS**. El main propio ronda 91 kB; Ghostery y Zod se conservan como módulos
 de ejecución. El preload específico de YouTube ocupa unos 9,64 kB adicionales. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **1,0–1,2 s** en esta máquina Linux headless con perfil de
 prueba; no es una garantía ni una medida de arranque en frío de otras plataformas.
+
+## Acceso con Google y ventanas OAuth
+
+**Google puede rechazar Nido por ser un navegador integrado en Electron**, incluso
+con cookies activas y una conexión HTTPS válida. El texto «el navegador o la aplicación
+no son seguros» no es un diagnóstico de los certificados de Nido. Firmar un instalador
+o cambiar el User-Agent no garantiza que Google lo admita. Esto puede afectar a todas
+las webs que ofrecen «Iniciar sesión con Google».
+
+Desde 1.0.3, las ventanas emergentes de autenticación se abren como ventanas nativas
+con la misma sesión y conservan `window.opener`/`postMessage`, en lugar de convertirse
+siempre en pestañas. Nido fuerza sandbox, aislamiento de contexto, Node desactivado
+y seguridad web aunque la página pida desactivarlos. La barra de título nativa muestra
+el origen; hay un límite de cuatro ventanas y no se suspende una pestaña con una
+ventana de acceso abierta. Los enlaces normales pueden seguir abriéndose en pestañas.
+
+El bloqueador de anuncios omite los recursos de páginas en el origen exacto
+`https://accounts.google.com` para no interrumpir sus comprobaciones. Las cookies
+de terceros siguen bloqueadas y no se amplía la lista de dominios de la sidebar.
+Esto mejora compatibilidad, **no garantiza resolver el rechazo de Google**.
+
+Si se detecta la página de rechazo, **Google: opciones de acceso** explica el límite.
+En una ventana emergente se muestra esa explicación una vez. Abrir Google en el
+navegador del sistema requiere una acción explícita; se usa un destino HTTPS fijo,
+sin reenviar parámetros OAuth. **La sesión permanece en ese navegador, no en Nido**.
+Para usar una web que siga rechazando Nido, abre también esa web en el navegador
+admitido y comienza el acceso allí. No se copian cookies, contraseñas ni tokens.
+
+Referencia: [políticas OAuth de Google — navegadores seguros](https://developers.google.com/identity/protocols/oauth2/policies#secure-browsers).
 
 ## Temas y personalización
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, webContents, Menu, clipboard, dialog } from 'electron';
+import { app, BrowserWindow, session, webContents, Menu, clipboard, dialog, shell } from 'electron';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -12,6 +12,17 @@ let lastWait = 'startup';
 let lastScript = '';
 app.setPath('userData', process.env.NIDO_SMOKE_PROFILE!);
 app.getAppPath = () => path.resolve('.');
+// Observe completion of Chromium's real clearing API only in the privileged runner.
+// Polling IndexedDB/Cache enumeration concurrently with deletion can deadlock Chromium.
+let completedStrictClears = 0;
+app.whenReady().then(() => {
+  const ses = session.fromPartition('nido-browsing', { cache: true });
+  const clear = ses.clearStorageData.bind(ses);
+  ses.clearStorageData = async (options) => {
+    await clear(options);
+    if (!options?.origin) completedStrictClears++;
+  };
+});
 // Load the production build, not a substitute implementation.
 createRequire(path.join(process.cwd(), 'dist/smoke.cjs'))('./main/index.js');
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -216,6 +227,28 @@ async function run() {
   let cacheRequests = 0;
   const downloadCookies: string[] = [];
   const server = createServer((req, res) => {
+    if (req.url === '/oauth-owner') {
+      res.setHeader('Content-Type', 'text/html');
+      res.end(
+        '<title>OAuth owner</title><script>window.oauthResult=null;window.addEventListener("message",e=>{if(e.source===window.oauthPopup && e.data?.state==="fixture-state")window.oauthResult={origin:e.origin,value:e.data.value}})</script>',
+      );
+      return;
+    }
+    if (req.url === '/oauth-login') {
+      res.setHeader('Content-Type', 'text/html');
+      res.end(
+        '<title>Untrusted provider title</title><form action="/oauth-finish" method="post"><button>Sign in</button></form>',
+      );
+      return;
+    }
+    if (req.url === '/oauth-finish') {
+      res.setHeader('Content-Type', 'text/html');
+      res.setHeader('Set-Cookie', 'popup-auth=yes; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600');
+      res.end(
+        `<script>window.opener.postMessage({state:"fixture-state",value:"fixture-auth-code"},"http://127.0.0.2:${port}");</script>`,
+      );
+      return;
+    }
     if (req.url?.startsWith('/download')) {
       downloadCookies.push(req.headers.cookie ?? '');
       const size = 4 * 1024 * 1024;
@@ -425,10 +458,9 @@ window.fixtureDone=false;window.attempts={};
   assert.deepEqual(browsing.serviceWorkers.getAllRunning(), {});
   await seedStorage(remote);
   assert.deepEqual((await storageState(remote)).databases, ['native-seed']);
-  await until(
-    async () => Object.values(await storageState(remote)).every((list) => list.length === 0),
-    'limpieza periódica nativa',
-  );
+  const beforeSweep = completedStrictClears;
+  await until(() => completedStrictClears > beforeSweep, 'limpieza periódica nativa');
+  assert.ok(Object.values(await storageState(remote)).every((list) => list.length === 0));
   await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
   assert.equal(cacheRequests, 1, 'barrida de almacenamiento no vacía caché de red');
   console.log(
@@ -694,11 +726,12 @@ window.fixtureDone=false;window.attempts={};
   );
   assert.equal(strictObserver.session, browsing);
   await seedStorage(strictObserver);
+  const beforeCompatibleSweep = completedStrictClears;
   await until(
-    async () =>
-      Object.values(await storageState(strictObserver)).every((list) => list.length === 0),
+    () => completedStrictClears > beforeCompatibleSweep,
     'barrida estricta con login compatible vivo',
   );
+  assert.ok(Object.values(await storageState(strictObserver)).every((list) => list.length === 0));
   assert.equal(
     await loginView.executeJavaScript(`localStorage.getItem('login-token')`),
     'fixture-token',
@@ -966,6 +999,81 @@ window.fixtureDone=false;window.attempts={};
     'PASS real download manager: progress, pause/resume, full file integrity, cancel, close prompt and clear-without-deleting',
   );
 
+  await call('navigate', `http://127.0.0.2:${port}/oauth-owner`);
+  const oauthOwner = await until(
+    () =>
+      webContents
+        .getAllWebContents()
+        .find((w) => w.getURL().endsWith('/oauth-owner') && !w.isLoading()),
+    'opener OAuth',
+  );
+  const beforePopupTabs = (await state()).tabs.length;
+  await oauthOwner.executeJavaScript(
+    `window.oauthPopup=window.open('http://127.0.0.4:${port}/oauth-login','nido-oauth','width=500,height=600,nodeIntegration=yes,contextIsolation=no,sandbox=no,webSecurity=no');void 0`,
+    true,
+  );
+  const authWindow = await until(
+    () =>
+      BrowserWindow.getAllWindows().find(
+        (w) =>
+          w !== win &&
+          w.webContents.getURL().endsWith('/oauth-login') &&
+          !w.webContents.isLoading(),
+      ),
+    'popup nativo OAuth',
+  );
+  const authContents = authWindow.webContents;
+  assert.equal(authContents.session, regular);
+  assert.equal(
+    (await state()).tabs.length,
+    beforePopupTabs,
+    'popup no sustituye opener por otra pestaña',
+  );
+  assert.equal(
+    await authContents.executeJavaScript(
+      `fetch('http://127.0.0.2:${port}/blank').then(()=>false,()=>true)`,
+    ),
+    true,
+    'webSecurity mantiene CORS aunque la página solicite desactivarlo',
+  );
+  assert.deepEqual(
+    await authContents.executeJavaScript(
+      `({node:typeof require,bridge:typeof window.nido,opener:!!window.opener})`,
+    ),
+    { node: 'undefined', bridge: 'undefined', opener: true },
+  );
+  assert.ok(
+    authWindow.getTitle().includes(`http://127.0.0.4:${port}`),
+    'título nativo muestra origen',
+  );
+  await authContents.executeJavaScript(`document.querySelector('form').requestSubmit()`);
+  await until(
+    async () => !!(await oauthOwner.executeJavaScript('window.oauthResult')),
+    'postMessage al opener',
+  );
+  assert.deepEqual(await oauthOwner.executeJavaScript('window.oauthResult'), {
+    origin: `http://127.0.0.4:${port}`,
+    value: 'fixture-auth-code',
+  });
+  assert.equal(
+    (await regular.cookies.get({ name: 'popup-auth' })).length,
+    1,
+    'cookie propia del popup conserva login',
+  );
+  assert.equal(
+    await authContents.executeJavaScript(
+      `(()=>{try{return window.open('file:///etc/passwd')===null}catch{return true}})()`,
+    ),
+    true,
+  );
+  authWindow.close();
+  await until(() => authWindow.isDestroyed(), 'cerrar popup');
+  assert.equal(oauthOwner.isDestroyed(), false);
+  await call('navigate', `http://127.0.0.2:${port}/account`);
+  console.log(
+    'PASS secure OAuth popup: same session, opener/postMessage, own cookie, sandbox, no Node/bridge, unsafe features overridden, dangerous schemes denied',
+  );
+
   const detected = await js(`(async () => {
     const isAntiAdblockNotice = ${isAntiAdblockNotice.toString()};
     let reports = 0;
@@ -1019,6 +1127,10 @@ window.fixtureDone=false;window.attempts={};
   };
   regular.protocol.handle('https', (request) => {
     const url = new URL(request.url);
+    if (url.origin === 'https://accounts.google.com')
+      return new Response('<title>Google rejection fixture</title>', {
+        headers: { 'Content-Type': 'text/html' },
+      });
     if (url.pathname === '/watch' && url.searchParams.has('pbj'))
       return new Response(")]}'\n" + JSON.stringify(adPayload), {
         headers: { 'Content-Type': 'application/json' },
@@ -1034,6 +1146,86 @@ window.fixtureDone=false;window.attempts={};
     );
   });
   try {
+    await call('settings', { ...(await state()).settings, historyEnabled: true });
+    await call(
+      'navigate',
+      'https://accounts.google.com/v3/signin/rejected?continue=https://attacker.test',
+    );
+    await until(async () => (await state()).googleLoginRejected, 'detectar rechazo Google');
+    assert.equal(await js(`document.getElementById('auth-warning').hidden`), false);
+    assert.equal(
+      (await state()).blockingDisabled,
+      true,
+      'página identidad exenta de filtros de anuncios',
+    );
+    const originalMessageBox = dialog.showMessageBox;
+    const originalExternal = shell.openExternal;
+    const external: string[] = [];
+    try {
+      shell.openExternal = async (url) => {
+        external.push(url);
+      };
+      dialog.showMessageBox = (async () => ({
+        response: 0,
+        checkboxChecked: false,
+      })) as typeof dialog.showMessageBox;
+      await call('auth-help');
+      assert.deepEqual(external, [], 'sin navegación externa automática');
+      const googlePage = await until(
+        () =>
+          webContents
+            .getAllWebContents()
+            .find(
+              (w) =>
+                w.getURL().startsWith('https://accounts.google.com/v3/signin/rejected') &&
+                !w.isLoading(),
+            ),
+        'página Google local cargada',
+      );
+      const helped: BrowserWindow[] = [];
+      dialog.showMessageBox = (async (parent: BrowserWindow) => {
+        helped.push(parent);
+        return { response: 0, checkboxChecked: false };
+      }) as unknown as typeof dialog.showMessageBox;
+      await googlePage.executeJavaScript(
+        `window.open('https://accounts.google.com/v3/signin/rejected','google-auth-fixture','width=500,height=600');void 0`,
+        true,
+      );
+      const rejectedPopup = await until(
+        () => (helped[0] && !helped[0].webContents.isLoading() ? helped[0] : undefined),
+        'explicación del rechazo en popup',
+      );
+      rejectedPopup.webContents.reload();
+      await until(() => !rejectedPopup.webContents.isLoading(), 'recarga popup rechazado');
+      await wait(100);
+      assert.equal(helped.length, 1, 'no repite explicación en la misma ventana');
+      assert.deepEqual(external, [], 'rechazo de popup no abre navegador automáticamente');
+      rejectedPopup.close();
+      await until(() => rejectedPopup.isDestroyed(), 'cerrar popup Google simulado');
+
+      dialog.showMessageBox = (async () => ({
+        response: 1,
+        checkboxChecked: false,
+      })) as typeof dialog.showMessageBox;
+      await call('auth-help');
+      assert.deepEqual(
+        external,
+        ['https://accounts.google.com/'],
+        'destino fijo, no continue no confiable',
+      );
+    } finally {
+      dialog.showMessageBox = originalMessageBox;
+      shell.openExternal = originalExternal;
+    }
+    assert.equal(
+      (await readdir(app.getPath('userData'))).includes('history.json'),
+      false,
+      'no guarda URLs de identidad en historial opcional',
+    );
+    await call('settings', { ...(await state()).settings, historyEnabled: false });
+    console.log(
+      'PASS Google rejection help: visible after committed navigation, one popup explanation, no automatic external launch, fixed HTTPS target, identity history skipped',
+    );
     await call('navigate', 'https://www.youtube.com/watch?v=local-fixture');
     const youtube = await until(
       () =>

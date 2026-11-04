@@ -131,3 +131,19 @@ No se promete bloqueo universal: las pruebas locales no equivalen a YouTube en v
 Una ejecución del smoke agotó el tiempo antes de llegar a YouTube. Se añadieron
 diagnósticos del último paso/script en el timeout; la reejecución completa pasó,
 incluida la fixture PBJ. Se mantienen los límites de tiempo y el sandbox.
+
+## v1.0.3 — autenticación y seguridad de ventanas
+
+La captura corresponde al rechazo de acceso de Google, que no acredita por sí
+misma un fallo de TLS. No se eliminan validaciones, no se falsea una certificación
+y no se importan secretos de otros navegadores. El User-Agent existente no cambia.
+Se corrige una limitación real: sustituir todos los popups por pestañas rompía
+opener/postMessage y formularios con destino a una ventana nueva.
+
+Se fuerzan preferencias seguras, sesión heredada y preload sin API, con límite de
+ventanas activas/pendientes, cierre durante limpieza y bloqueo de esquemas peligrosos.
+La UI interna deniega window.open. La compatibilidad de filtros se limita al origen
+HTTPS de cuentas Google; las cookies de terceros y la sidebar conservan sus reglas.
+La ayuda requiere confirmación antes de abrir una URL externa fija. Aclara que la
+sesión se queda fuera de Nido. El acceso real con Google sigue dependiendo del
+proveedor y no se ha validado con una cuenta real desde este entorno.

@@ -1,3 +1,7 @@
+import { showGoogleAuthHelp } from './auth-help';
+import { isIdentityPage } from '../shared/auth';
+import { AuthWindows } from './auth-windows';
+import { isGoogleLoginRejected } from '../shared/auth';
 import { Downloads } from './downloads';
 import { pageMenu, addressMenu, editMenu } from './context-menu';
 import { resolveLocale, translate } from '../shared/i18n';
@@ -76,6 +80,7 @@ const blocking = new Blocking(
 let active = '';
 let sidebar: Sidebar;
 let overlay = false;
+let authWindows: AuthWindows;
 const downloads = new Downloads(sendState);
 let browsingPrivacy: ReturnType<typeof configurePrivacy>;
 let temporaryPrivacy: ReturnType<typeof configurePrivacy>;
@@ -109,6 +114,7 @@ function sendState() {
     settings,
     locale: locale(),
     youtubePaused: blocking.youtubePaused,
+    googleLoginRejected: isGoogleLoginRejected(current()?.view?.webContents?.getURL() ?? ''),
     downloads: downloads.snapshot(),
     version: app.getVersion(),
     compatible: !!current()?.site,
@@ -198,10 +204,7 @@ function createView(tab: Tab) {
       }),
     ).popup({ window: win });
   });
-  view.webContents.setWindowOpenHandler(({ url }) => {
-    if (isWebUrl(url) && blocking.popupAllowed(view.webContents, url)) openTab(url);
-    return { action: 'deny' };
-  });
+  authWindows.attach(view.webContents);
   view.webContents.on('will-frame-navigate', (event) => {
     if (!isWebUrl(event.url)) event.preventDefault();
   });
@@ -234,7 +237,7 @@ function createView(tab: Tab) {
   };
   view.webContents.on('did-navigate', (_, url) => {
     update();
-    if (settings.historyEnabled) void recordHistory(url, tab.state.title);
+    if (settings.historyEnabled && !isIdentityPage(url)) void recordHistory(url, tab.state.title);
   });
   view.webContents.on('did-navigate-in-page', update);
   view.webContents.on('before-input-event', (event, input) => {
@@ -398,6 +401,7 @@ const Command = z.discriminatedUnion('action', [
     'clear-history',
     'clear-browsing-data',
     'clear-downloads',
+    'auth-help',
   ].map((action) => z.object({ action: z.literal(action), payload: z.unknown().optional() })),
   ...['activate', 'close', 'navigate', 'provider', 'media-url'].map((action) =>
     z.object({ action: z.literal(action), payload: z.string().max(4096) }),
@@ -458,6 +462,13 @@ app.whenReady().then(async () => {
     backgroundColor: '#131a18',
     webPreferences: { ...safePreferences, preload: path.join(__dirname, '../preload/index.js') },
   });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  authWindows = new AuthWindows(
+    () => win,
+    () => settings,
+    blocking,
+    openTab,
+  );
   sidebar = new Sidebar(
     win,
     () => settings,
@@ -621,6 +632,9 @@ app.whenReady().then(async () => {
     const command = Command.parse(raw);
     const tab = current();
     switch (command.action) {
+      case 'auth-help':
+        await showGoogleAuthHelp(win, current()?.view?.webContents?.getURL() ?? '', settings);
+        break;
       case 'download': {
         const payload = command.payload as {
           id: string;
@@ -790,6 +804,7 @@ app.whenReady().then(async () => {
       if (
         tab.state.id !== active &&
         tab.view &&
+        !authWindows.hasOpenPopup(tab.view.webContents) &&
         Date.now() - tab.lastActive > settings.suspendMinutes * 60_000
       ) {
         win.contentView.removeChildView(tab.view);
@@ -813,6 +828,7 @@ app.on('before-quit', (event) => {
   sessionPrivacy?.dispose();
   // Destroy remote producers before clearing their storage. Keep the native
   // window alive until cleanup finishes, so child views can be detached safely.
+  authWindows?.closeAll();
   sidebar?.closeAll();
   for (const tab of tabs) {
     const contents = tab.view?.webContents;

@@ -2,6 +2,7 @@ import { ElectronBlocker, fromElectronDetails, Request } from '@ghostery/adblock
 import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { app, net, webContents, type Session, type WebContents } from 'electron';
 import path from 'node:path';
+import { isIdentityPage } from '../shared/auth';
 import { isYoutubePage, isYoutubeResource } from '../shared/youtube';
 import { hostname, videoExcluded, providerAllows } from '../shared/privacy';
 import { upgradeHttp } from './privacy';
@@ -81,6 +82,7 @@ export class Blocking {
   }
   exempt(url: string, sidebar = false) {
     return (
+      isIdentityPage(url) ||
       (isYoutubeResource(url) && (!this.getSettings().youtubeAutoPause || this.youtubePaused)) ||
       videoExcluded(url, this.getSettings().videoExclusions) ||
       this.disabledSites.has(hostname(url)) ||

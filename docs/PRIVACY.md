@@ -191,3 +191,26 @@ Copiar solo escribe al portapapeles; «Pegar y acceder», abrir/buscar selecció
 archivo por abrir su menú. Enlaces/imágenes del menú solo admiten HTTP(S). Se mantiene
 la acción manual de copiar para la IA, sin enviar contenido a asistentes. Los temas
 son CSS local y no descargan imágenes, fuentes ni paquetes de estilos.
+
+## Compatibilidad de autenticación (1.0.3)
+
+Los popups OAuth conservan la sesión de su pestaña y su opener, sin una API Nido ni
+Node en el mundo remoto. No se ejecuta un cliente OAuth propio ni se capturan códigos
+o tokens: el sitio valida sus propios mensajes y estados. El título nativo muestra
+el origen. Los popups se destruyen antes de limpiar los perfiles al salir y una
+pestaña con un popup abierto no se suspende. No se guardan entradas propias de
+historial para las ventanas emergentes ni para futuras visitas al origen exacto de
+cuentas Google; los datos persistentes y caché del perfil normal siguen vigentes.
+
+Se excluye `https://accounts.google.com` del filtrado de anuncios y de cosmética,
+incluidos sus recursos, para no romper sus verificaciones. La exclusión no permite
+cookies de terceros ni desactiva sandbox, CSP del sitio, aislamiento, CORS o TLS.
+No se agregan excepciones para Google a las cookies de la sidebar de IA.
+
+El rechazo de Google puede obedecer a su política sobre navegadores integrados;
+no equivale a un error TLS ni se presenta como corregido o certificado por Google.
+La ayuda de Nido solo abre el navegador del sistema si el usuario elige hacerlo,
+y siempre hacia `https://accounts.google.com/`, ignorando `continue` y parámetros
+no confiables. El inicio de sesión externo permanece allí: no se importa, comparte
+ni copia a Nido. También hay que abrir la web destino e iniciar el flujo en ese
+navegador si se quiere usar allí. No se extraen cookies, credenciales ni perfiles.

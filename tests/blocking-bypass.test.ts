@@ -69,3 +69,11 @@ it('filtra YouTube inicialmente, pausa solo YouTube y permite reactivarlo', () =
   expect(blocking.popupAllowed(contents, 'https://ads.example.test/')).toBe(false);
   expect(match).toHaveBeenCalledTimes(2);
 });
+
+it('excluye recursos de páginas de identidad antes de consultar filtros', () => {
+  const blocking = new Blocking(() => ({ ...defaults(), youtubeAutoPause: false }), vi.fn());
+  const match = vi.fn();
+  Reflect.set(blocking, 'engine', { match });
+  expect(blocking.exempt('https://accounts.google.com/v3/signin')).toBe(true);
+  expect(blocking.exempt('https://accounts.google.com.attacker.test/')).toBe(false);
+});

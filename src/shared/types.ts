@@ -31,6 +31,7 @@ export interface State {
   compatible: boolean;
   locale: Locale;
   youtubePaused: boolean;
+  googleLoginRejected: boolean;
 }
 export interface Bridge {
   call(action: string, payload?: unknown): Promise<unknown>;

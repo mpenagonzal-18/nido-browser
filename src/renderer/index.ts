@@ -1,3 +1,4 @@
+import { isIdentityPage } from '../shared/auth';
 import { renderDownloads } from './downloads-ui';
 import { translate } from '../shared/i18n';
 import { isYoutubePage } from '../shared/youtube';
@@ -25,6 +26,7 @@ $('privacy-toggle').onclick = () => {
   else void call('toggle-compatibility');
 };
 $('ai-toggle').onclick = () => void call('sidebar-toggle');
+$('auth-warning').onclick = () => void call('auth-help');
 $('blocking').onclick = () => void call('toggle-blocking');
 let settingsOpen = false;
 let downloadsOpen = false;
@@ -189,14 +191,18 @@ function render() {
       ? 'OFF'
       : String(tab?.blocked ?? 0);
   $('blocking').title = tr(
-    pausedYoutube
-      ? 'Bloqueo pausado en YouTube. Pulsa para reactivarlo.'
-      : isYoutubePage(tab?.url ?? '') && !state.blockingDisabled
-        ? 'Filtro del reproductor activo. El contador solo incluye peticiones bloqueadas.'
-        : 'Bloqueo en este sitio',
+    isIdentityPage(tab?.url ?? '')
+      ? 'Autenticación: recursos sin filtrar; cookies de terceros bloqueadas.'
+      : pausedYoutube
+        ? 'Bloqueo pausado en YouTube. Pulsa para reactivarlo.'
+        : isYoutubePage(tab?.url ?? '') && !state.blockingDisabled
+          ? 'Filtro del reproductor activo. El contador solo incluye peticiones bloqueadas.'
+          : 'Bloqueo en este sitio',
   );
   $('youtube-status').hidden = !pausedYoutube;
   $('youtube-status').textContent = tr('YouTube: bloqueo pausado; se permiten anuncios.');
+  $('auth-warning').hidden = !state.googleLoginRejected;
+  $('auth-warning').textContent = tr('Google: opciones de acceso');
   renderSidebar();
   $('http-warning').hidden = !tab?.url.startsWith('http:');
 }
