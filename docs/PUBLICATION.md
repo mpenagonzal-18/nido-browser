@@ -195,3 +195,27 @@ historial opcional. No se usaron cuentas Google reales ni se ha demostrado que
 Google admita Nido. El rechazo del proveedor puede persistir; la sesión del navegador
 del sistema no se transfiere a Nido. No se promete resolver esa restricción ni se
 relajan sandbox, TLS o la política de cookies de terceros. Instaladores sin firma.
+
+## v1.1.0 — temas completos, fuentes y atajos de pestañas
+
+Publicada el 5 de noviembre de 2026. Commit
+`9afd7e5417b67c17a618612674965b8169c37c4c`, tag `v1.1.0`.
+
+- [CI](https://github.com/mpenagonzal-18/nido-browser/actions/runs/42023570333): **Success**, 1 min 44 s; 88 pruebas unitarias, lint, tipos, integración y tres empaquetados.
+- [Release](https://github.com/mpenagonzal-18/nido-browser/actions/runs/42023572268): **Success**, 4 min 22 s; comprobaciones, instaladores de tres plataformas y publicación.
+- [Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.1.0/Nido.Setup.1.1.0.exe).
+- [macOS/Linux y otros archivos](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.1.0).
+- [Checksums](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.1.0/SHA256SUMS.txt).
+
+Instalador público descargado y verificado contra el manifiesto: **123.514.875 bytes**,
+MZ y firma PE válidos, SHA-256:
+
+```text
+fd68c96195ab0d94ea52384e8a92166975a08a70593be6f125859add162738ec
+```
+
+La integración valida atajos nativos con foco en UI y web, dirección visible,
+veinte presets, controles bloqueados, fuentes, recuperación de personalizable y
+persistencia tras reinicio. Se revisó visualmente Aurora en Electron Linux y se
+incluye una captura limpia en README. Las fuentes concretas dependen de las
+instaladas en cada plataforma; no se descargan tipografías. Instaladores sin firma.

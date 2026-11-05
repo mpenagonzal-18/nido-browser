@@ -6,9 +6,9 @@ TypeScript + DOM nativo; sin framework de UI ni servicios propios.
 
 ![Página de inicio de Nido](assets/nido-preview.png)
 
-**Versión publicada:** [v1.0.3](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.3) ·
-[Instalador Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.0.3/Nido.Setup.1.0.3.exe) ·
-[macOS / Linux y checksums](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.0.3).
+**Versión publicada:** [v1.1.0](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.1.0) ·
+[Instalador Windows .exe](https://github.com/mpenagonzal-18/nido-browser/releases/download/v1.1.0/Nido.Setup.1.1.0.exe) ·
+[macOS / Linux y checksums](https://github.com/mpenagonzal-18/nido-browser/releases/tag/v1.1.0).
 
 > Proyecto inicial funcional. La interacción gráfica en Windows/macOS y los inicios de
 > sesión de proveedores necesitan revisión en sus plataformas. No es un navegador
@@ -309,7 +309,7 @@ git push origin v0.1.0
 
 Alternativa manual: crea un repositorio vacío en GitHub, copia su URL, configura
 `origin` (con `git remote add origin URL` si falta, o `set-url` si existe) y haz
-`git push -u origin main`. La versión **v1.0.3** ya está publicada. Consulta [la evidencia de publicación](docs/PUBLICATION.md).
+`git push -u origin main`. La versión **v1.1.0** ya está publicada. Consulta [la evidencia de publicación](docs/PUBLICATION.md).
 
 [Arquitectura](docs/ARCHITECTURE.md) · [Validación y límites](docs/VALIDATION.md) ·
 [Contribuir](CONTRIBUTING.md) · [Licencias de terceros](docs/THIRD_PARTY.md)
