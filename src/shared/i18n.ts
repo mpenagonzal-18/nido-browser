@@ -70,6 +70,32 @@ export const ENGLISH: Record<string, string> = {
   'Abrir Google en el navegador del sistema': 'Open Google in your system browser',
   'Autenticación: recursos sin filtrar; cookies de terceros bloqueadas.':
     'Authentication: resources are unfiltered; third-party cookies remain blocked.',
+  Sakura: 'Sakura',
+  Jade: 'Jade',
+  Volcán: 'Volcano',
+  Cosmos: 'Cosmos',
+  Laguna: 'Lagoon',
+  Cobre: 'Copper',
+  Grafito: 'Graphite',
+  Otoño: 'Autumn',
+  Orquídea: 'Orchid',
+  Menta: 'Mint',
+  'Paleta personalizable': 'Custom palette',
+  'Tema visual': 'Visual theme',
+  'Modo de luz': 'Light mode',
+  Fuentes: 'Fonts',
+  Clásica: 'Classic',
+  Moderna: 'Modern',
+  Redondeada: 'Rounded',
+  Editorial: 'Editorial',
+  Monoespaciada: 'Monospace',
+  'El tema fija acento, fondo y fuentes. Elige Paleta personalizable para editarlos.':
+    'This theme fixes the accent, background and fonts. Choose Custom palette to edit them.',
+  'Tu personalización se conserva al probar otros temas.':
+    'Your customization is kept when trying other themes.',
+  'Pestañas: Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+RePág / AvPág y Ctrl/Cmd+1–9. En macOS también Cmd+Option+←/→.':
+    'Tabs: Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+PageUp / PageDown and Ctrl/Cmd+1–9. On macOS also Cmd+Option+←/→.',
+  'Tinte de barras y paneles': 'Toolbar and panel tint',
   Idioma: 'Language',
   'Del sistema': 'System default',
   'Idioma de la interfaz': 'Interface language',
@@ -242,6 +268,12 @@ export function translate(
   return message.replace(/\{(\w+)\}/g, (token, name: string) => String(values[name] ?? token));
 }
 export const OPTION_NAMES: Record<string, string> = {
+  custom: 'Paleta personalizable',
+  classic: 'Clásica',
+  modern: 'Moderna',
+  rounded: 'Redondeada',
+  editorial: 'Editorial',
+  mono: 'Monoespaciada',
   auto: 'Automático',
   dark: 'Oscuro',
   light: 'Claro',

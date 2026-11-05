@@ -11,6 +11,7 @@ import { APP_NAME } from '../shared/config';
 import type { State } from '../shared/types';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 let state: State;
+let renderedActive = '';
 const tr = (source: string, values: Record<string, string | number> = {}) =>
   translate(source, state?.locale ?? 'es', values);
 const call = (action: string, payload?: unknown) =>
@@ -179,8 +180,9 @@ function render() {
       return el;
     }),
   );
-  if (document.activeElement !== $('address'))
+  if (state.active !== renderedActive || document.activeElement !== $('address'))
     $<HTMLInputElement>('address').value = tab?.url.startsWith('nido:') ? '' : (tab?.url ?? '');
+  renderedActive = state.active;
   $<HTMLButtonElement>('back').disabled = !tab?.canBack;
   $<HTMLButtonElement>('forward').disabled = !tab?.canForward;
   $('newtab').hidden = tab?.url !== 'nido://app/newtab';

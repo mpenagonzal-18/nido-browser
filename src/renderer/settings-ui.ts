@@ -1,4 +1,5 @@
-import { COLOR_THEMES } from '../shared/themes';
+import { resolvedAppearance } from '../shared/appearance';
+import { COLOR_THEMES, FONT_STYLES } from '../shared/themes';
 import { translate, OPTION_NAMES, type Locale } from '../shared/i18n';
 import type { Settings } from '../shared/settings';
 import { applyAppearance } from './newtab/appearance';
@@ -9,7 +10,13 @@ export function renderSettings(
   action: (name: string) => void,
   locale: Locale = 'es',
 ) {
+  const focusedTheme = (document.activeElement as HTMLElement)?.dataset.themeId;
   const s = structuredClone(initial);
+  const look = resolvedAppearance(
+    s,
+    s.theme === 'light' ||
+      (s.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches),
+  );
   const tr = (source: string, values: Record<string, string | number> = {}) =>
     translate(source, locale, values);
   root.replaceChildren();
@@ -29,8 +36,11 @@ export function renderSettings(
   };
   const preview = document.createElement('div');
   const paintPreview = () => {
-    preview.style.color = s.accent;
-    preview.style.setProperty('--preview-blur', `${s.wallpaper.blur}px`);
+    preview.style.color = 'var(--hero-accent,var(--accent))';
+    preview.style.setProperty(
+      '--preview-blur',
+      `${resolvedAppearance(s, s.theme === 'light').wallpaper.blur}px`,
+    );
     void applyAppearance(s).then(() => {
       preview.style.setProperty(
         '--preview-bg',
@@ -120,16 +130,13 @@ export function renderSettings(
   for (const theme of COLOR_THEMES) {
     const tile = document.createElement('button');
     tile.type = 'button';
+    tile.dataset.themeId = theme.id;
     tile.textContent = tr(theme.name);
     tile.style.background = theme.gradient;
-    tile.setAttribute(
-      'aria-pressed',
-      String(s.colorTheme === theme.id && s.gradientPreset === theme.id),
-    );
+    tile.style.fontFamily = FONT_STYLES[theme.font].heading;
+    tile.setAttribute('aria-pressed', String(s.appearancePreset === theme.id));
     tile.onclick = () => {
-      s.colorTheme = theme.id;
-      s.gradientPreset = theme.id;
-      s.wallpaper.kind = 'gradient';
+      s.appearancePreset = theme.id;
       commit();
     };
     presets.append(tile);
@@ -137,8 +144,41 @@ export function renderSettings(
   appearance.append(presets);
   field(
     appearance,
-    'Paleta de la interfaz',
-    s.colorTheme,
+    'Tema visual',
+    s.appearancePreset,
+    (v) => {
+      s.appearancePreset = v as Settings['appearancePreset'];
+    },
+    'text',
+    ['custom', ...COLOR_THEMES.map((t) => t.id)],
+  );
+  const lockNote = document.createElement('p');
+  lockNote.textContent = tr(
+    look.locked
+      ? 'El tema fija acento, fondo y fuentes. Elige Paleta personalizable para editarlos.'
+      : 'Tu personalización se conserva al probar otros temas.',
+  );
+  appearance.append(lockNote);
+  field(
+    appearance,
+    'Modo de luz',
+    s.theme,
+    (v) => {
+      s.theme = v as Settings['theme'];
+    },
+    'text',
+    ['auto', 'dark', 'light'],
+  );
+  const custom = document.createElement('fieldset');
+  custom.className = 'appearance-controls';
+  custom.disabled = look.locked;
+  custom.setAttribute('aria-label', tr('Paleta personalizable'));
+  appearance.append(custom);
+
+  field(
+    custom,
+    'Tinte de barras y paneles',
+    look.paletteId,
     (v) => {
       s.colorTheme = v as Settings['colorTheme'];
     },
@@ -146,36 +186,44 @@ export function renderSettings(
     COLOR_THEMES.map((t) => t.id),
   );
   paintPreview();
-  field(appearance, 'Acento', s.accent, (v) => (s.accent = v), 'color');
-  field(appearance, 'Tema', s.theme, (v) => (s.theme = v as Settings['theme']), 'text', [
-    'auto',
-    'dark',
-    'light',
-  ]);
+  field(custom, 'Acento', look.accent, (v) => (s.accent = v), 'color');
   field(
-    appearance,
+    custom,
     'Fondo',
-    s.wallpaper.kind,
+    look.wallpaper.kind,
     (v) => (s.wallpaper.kind = v as Settings['wallpaper']['kind']),
     'text',
     ['gradient', 'solid', 'image'],
   );
-  button(appearance, 'Gradiente personalizado', () => {
+  button(custom, 'Gradiente personalizado', () => {
     s.gradientPreset = 'custom';
     s.wallpaper.kind = 'gradient';
     commit();
   });
-  field(appearance, 'Color del fondo', s.wallpaper.color, (v) => (s.wallpaper.color = v), 'color');
-  field(appearance, 'Desenfoque', s.wallpaper.blur, (v) => (s.wallpaper.blur = Number(v)), 'range');
+  field(custom, 'Color del fondo', look.wallpaper.color, (v) => (s.wallpaper.color = v), 'color');
+  field(custom, 'Desenfoque', look.wallpaper.blur, (v) => (s.wallpaper.blur = Number(v)), 'range');
   field(
-    appearance,
+    custom,
     'Oscurecimiento',
-    s.wallpaper.dim,
+    look.wallpaper.dim,
     (v) => (s.wallpaper.dim = Number(v)),
     'range',
   );
-  button(appearance, 'Elegir imagen local', () => action('choose-wallpaper'));
-  const navigation = group('Navegación y memoria');
+  button(custom, 'Elegir imagen local', () => action('choose-wallpaper'));
+  field(
+    custom,
+    'Fuentes',
+    look.fontStyle,
+    (v) => {
+      s.customFont = v as Settings['customFont'];
+    },
+    'text',
+    Object.keys(FONT_STYLES),
+  );
+  const navigation = group(
+    'Navegación y memoria',
+    'Pestañas: Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+RePág / AvPág y Ctrl/Cmd+1–9. En macOS también Cmd+Option+←/→.',
+  );
   field(navigation, 'Buscador', s.search, (v) => (s.search = v as Settings['search']), 'text', [
     'duckduckgo',
     'brave',
@@ -371,4 +419,6 @@ export function renderSettings(
   button(config, 'Exportar JSON', () => action('export-settings'));
   button(config, 'Importar JSON', () => action('import-settings'));
   button(config, 'Restablecer ajustes', () => action('reset-settings'));
+  if (focusedTheme)
+    root.querySelector<HTMLButtonElement>(`[data-theme-id="${focusedTheme}"]`)?.focus();
 }

@@ -74,18 +74,21 @@ si aún no está presente; en entornos Node 24 con proxy HTTP puede ser necesari
 - La página nueva se dibuja en la UI existente; no crea un renderer extra. La IA
   se crea bajo demanda. La música sigue en la UI al suspender o cambiar vistas.
 
-| Atajo                             | Acción                     |
-| --------------------------------- | -------------------------- |
-| Ctrl/Cmd+T                        | Nueva pestaña              |
-| Ctrl/Cmd+W                        | Cerrar pestaña             |
-| Ctrl/Cmd+L                        | Seleccionar dirección      |
-| Ctrl/Cmd+R                        | Recargar                   |
-| Ctrl/Cmd+J                        | Gestor de descargas        |
-| Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab | Pestaña siguiente/anterior |
-| Ctrl/Cmd+Shift+A                  | Mostrar/ocultar IA         |
+| Atajo                            | Acción                      |
+| -------------------------------- | --------------------------- |
+| Ctrl/Cmd+T                       | Nueva pestaña               |
+| Ctrl/Cmd+W                       | Cerrar pestaña              |
+| Ctrl/Cmd+L                       | Seleccionar dirección       |
+| Ctrl/Cmd+R                       | Recargar                    |
+| Ctrl/Cmd+J                       | Gestor de descargas         |
+| Ctrl+Tab / Ctrl+Shift+Tab        | Pestaña siguiente/anterior  |
+| Ctrl+RePág / Ctrl+AvPág          | Pestaña anterior/siguiente  |
+| Ctrl+1–8 / Ctrl+9 (Cmd en macOS) | Pestaña por número / última |
+| Cmd+Option+← / → (macOS)         | Pestaña anterior/siguiente  |
+| Ctrl/Cmd+Shift+A                 | Mostrar/ocultar IA          |
 
-Bundle renderer medido con esbuild: **34,60 kB JS** (11,94 kB gzip), más unos
-**10,00 kB CSS**. El main propio ronda 91 kB; Ghostery y Zod se conservan como módulos
+Bundle renderer medido con esbuild: **39,69 kB JS** (13,75 kB gzip), más unos
+**10,00 kB CSS**. El main propio ronda 98 kB; Ghostery y Zod se conservan como módulos
 de ejecución. El preload específico de YouTube ocupa unos 9,64 kB adicionales. Estas cifras **no** son el tamaño de Electron ni el consumo RAM:
 Chromium domina el instalador y cada página remota usa procesos propios. La UI estuvo
 lista en aproximadamente **1,0–1,2 s** en esta máquina Linux headless con perfil de
@@ -122,14 +125,34 @@ Referencia: [políticas OAuth de Google — navegadores seguros](https://develop
 
 ## Temas y personalización
 
-En **Ajustes → Color y fondo** hay diez temas: Bosque, Océano, Atardecer, Aurora,
-Lavanda, Rosa, Brasa, Medianoche, Dunas y Ártico. Cada tarjeta aplica su gradiente y
-la paleta de barras/paneles; el selector **Paleta de la interfaz** permite combinar
-esa paleta con una imagen local o un color sólido. **Gradiente personalizado**
-recupera la mezcla de tu acento y color del fondo. Se mantienen los modos claro,
-oscuro y automático, el desenfoque, oscurecimiento y vista previa inmediata.
-Todo se guarda localmente y se incluye al exportar/importar ajustes. La actualización
-conserva imágenes y colores existentes.
+En **Ajustes → Color y fondo → Tema visual** hay **20 temas completos**: Bosque,
+Océano, Atardecer, Aurora, Lavanda, Rosa, Brasa, Medianoche, Dunas, Ártico, Sakura,
+Jade, Volcán, Cosmos, Laguna, Cobre, Grafito, Otoño, Orquídea y Menta.
+
+Cada preset aplica su acento, paleta de barras/paneles, gradiente y tipografía.
+Los controles manuales quedan bloqueados mientras está seleccionado; el modo claro,
+oscuro o automático permanece disponible y el acento tiene variantes según la luz.
+El encabezado de nueva pestaña mantiene un acento legible sobre su gradiente oscuro.
+
+![20 temas y controles bloqueados con Aurora](assets/screenshots/themes-1.1.0.png)
+
+Elige **Paleta personalizable** para editar acento, tinte de barras/paneles, imagen
+local, color sólido o gradiente propio, desenfoque, oscurecimiento y fuentes. Probar
+un preset no borra esos valores: al volver a personalizable se recuperan. La vista
+previa es inmediata y los ajustes se guardan e incluyen en exportación/importación.
+Los perfiles antiguos con imagen o ajustes mezclados pasan a personalizable; un
+preset antiguo coherente se convierte en tema completo.
+
+Las fuentes usan cinco estilos locales (clásica, moderna, redondeada, editorial y
+monoespaciada), asignados a los temas. Su aspecto exacto depende de las fuentes
+instaladas y sus alternativas de sistema. No hay descargas ni dependencias nuevas;
+solo cambia la interfaz de Nido, no las fuentes de las páginas visitadas.
+
+Los atajos funcionan con el foco en la interfaz, páginas y sidebar: Ctrl+Tab y
+Ctrl+Shift+Tab recorren circularmente; Ctrl+RePág/AvPág retroceden/avanzan. Ctrl+1–8
+seleccionan por posición y Ctrl+9 la última; en macOS se usa Cmd para los números y
+también Cmd+Option+←/→. **Cmd+Tab en macOS se reserva al sistema**. La barra muestra
+la dirección de la pestaña elegida aunque estuviera enfocada.
 
 ## Clic derecho y pestañas
 

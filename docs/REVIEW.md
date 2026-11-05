@@ -147,3 +147,17 @@ HTTPS de cuentas Google; las cookies de terceros y la sidebar conservan sus regl
 La ayuda requiere confirmación antes de abrir una URL externa fija. Aclara que la
 sesión se queda fuera de Nido. El acceso real con Google sigue dependiendo del
 proveedor y no se ha validado con una cuenta real desde este entorno.
+
+## 1.1.0 — presets y navegación por teclado
+
+La apariencia efectiva se resuelve por separado de los valores personalizados,
+con enums Zod compartidos con el catálogo. Un preset fija acento, fondo y fuentes;
+los controles manuales se deshabilitan y no se permite elegir una imagen desde IPC
+si el modo no es personalizable. Los valores propios se conservan para recuperarlos.
+La migración distingue presets antiguos coherentes de imágenes/ajustes mezclados.
+Se evita que una respuesta de imagen antigua repinte un tema elegido después.
+
+Los atajos se interpretan en main para UI, WebContentsView y sidebar. El cálculo de
+índices es circular y se deja Cmd+Tab a macOS. Al cambiar de pestaña se sincroniza la
+URL visible aunque el campo conserve el foco. No cambian sesiones, permisos, OAuth
+ni el filtrado. Las fuentes y fondos nuevos son locales; no hay dependencias nuevas.

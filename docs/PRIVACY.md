@@ -214,3 +214,14 @@ y siempre hacia `https://accounts.google.com/`, ignorando `continue` y parámetr
 no confiables. El inicio de sesión externo permanece allí: no se importa, comparte
 ni copia a Nido. También hay que abrir la web destino e iniciar el flujo en ese
 navegador si se quiere usar allí. No se extraen cookies, credenciales ni perfiles.
+
+## Temas completos y atajos (1.1.0)
+
+Los veinte presets son datos CSS y pilas de fuentes locales. No cargan paquetes,
+fuentes ni fondos de red. Solo se aplican a la interfaz interna de Nido, sin inyectar
+estilos en las páginas. La selección y los valores propios se guardan en el JSON
+local; cambiar de preset no borra imágenes, rutas o acentos personalizados.
+Los presets se resuelven de forma determinista, por lo que los valores manuales no
+alteran un preset aunque existan en el archivo importado. La interfaz los deshabilita
+hasta escoger Paleta personalizable. Los atajos se gestionan en el proceso principal
+y no registran pulsaciones ni transmiten datos.

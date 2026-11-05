@@ -98,8 +98,8 @@ async function run() {
   }
   if (process.env.NIDO_SMOKE_STAGE === 'restart') {
     assert.equal(initial.downloads.length, 0, 'registro de descargas no persiste');
-    assert.equal(initial.settings.colorTheme, 'ocean');
-    assert.equal(initial.settings.gradientPreset, 'ocean');
+    assert.equal(initial.settings.appearancePreset, 'custom');
+    assert.equal(initial.settings.customFont, 'mono');
     assert.equal(initial.settings.language, 'en');
     assert.equal(initial.locale, 'en');
     assert.equal(await js('document.documentElement.lang'), 'en');
@@ -206,13 +206,39 @@ async function run() {
     return;
   }
   assert.equal(webContents.getAllWebContents().length, 1, 'no remote views created at startup');
+  const firstTab = (await state()).active;
+  await call('new');
+  const secondTab = (await state()).active;
+  await call('new');
+  const lastTab = (await state()).active;
+  const press = async (
+    wc: Electron.WebContents,
+    keyCode: string,
+    modifiers: NonNullable<Electron.KeyboardInputEvent['modifiers']>,
+  ) => {
+    wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+    wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+  };
+  await press(win.webContents, 'Tab', ['control']);
+  await until(async () => (await state()).active === firstTab, 'Ctrl+Tab vuelta');
+  await press(win.webContents, 'Tab', ['control', 'shift']);
+  await until(async () => (await state()).active === lastTab, 'Ctrl+Shift+Tab');
+  await press(win.webContents, '2', ['control']);
+  await until(async () => (await state()).active === secondTab, 'Ctrl+2');
+  await press(win.webContents, '9', ['control']);
+  await until(async () => (await state()).active === lastTab, 'Ctrl+9 última');
+  await press(win.webContents, 'PageUp', ['control']);
+  await until(async () => (await state()).active === secondTab, 'Ctrl+RePág');
+  await call('close', lastTab);
+  await call('activate', firstTab);
+  await call('close', secondTab);
   const originalColor = await js(
     `getComputedStyle(document.querySelector('header')).backgroundColor`,
   );
   await js(`document.getElementById('settings-toggle').click()`);
-  assert.equal(await js(`document.querySelectorAll('.theme-presets button').length`), 10);
+  assert.equal(await js(`document.querySelectorAll('.theme-presets button').length`), 20);
   await js(`document.querySelectorAll('.theme-presets button')[1].click()`);
-  await until(async () => (await state()).settings.colorTheme === 'ocean', 'tema océano');
+  await until(async () => (await state()).settings.appearancePreset === 'ocean', 'tema océano');
   assert.notEqual(
     await js(`getComputedStyle(document.querySelector('header')).backgroundColor`),
     originalColor,
@@ -222,7 +248,35 @@ async function run() {
     'Océano',
   );
   await js(`document.getElementById('settings-close').click()`);
-  console.log('PASS ten theme tiles: selection repaints browser chrome and persists');
+  assert.equal(await js(`document.querySelector('.appearance-controls').disabled`), true);
+  const oceanAccent = await js(
+    `getComputedStyle(document.documentElement).getPropertyValue('--accent')`,
+  );
+  assert.notEqual(oceanAccent.trim(), initial.settings.accent);
+  const oceanFont = await js(`getComputedStyle(document.querySelector('h1')).fontFamily`);
+  await js(`document.getElementById('settings-toggle').click()`);
+  await js(`document.querySelector('[data-theme-id="cosmos"]').click()`);
+  await until(async () => (await state()).settings.appearancePreset === 'cosmos', 'tema cosmos');
+  assert.notEqual(await js(`getComputedStyle(document.querySelector('h1')).fontFamily`), oceanFont);
+  await js(`document.querySelector('select').value='es'`);
+  await call('settings', {
+    ...(await state()).settings,
+    appearancePreset: 'custom',
+    customFont: 'mono',
+  });
+  await until(
+    () => js(`!document.querySelector('.appearance-controls').disabled`),
+    'desbloquear paleta personalizable',
+  );
+  assert.equal(
+    (await state()).settings.accent,
+    initial.settings.accent,
+    'presets no borran acento propio',
+  );
+  await js(`document.getElementById('settings-close').click()`);
+  console.log(
+    'PASS twenty themes: fixed accent/background/fonts, locked controls, custom restored',
+  );
   const trackerCookies: string[] = [];
   let cacheRequests = 0;
   const downloadCookies: string[] = [];
@@ -413,6 +467,26 @@ window.fixtureDone=false;window.attempts={};
   );
   console.log(
     'PASS address: real first click selects all, later clicks place caret, refocus selects again',
+  );
+  const remoteTabId = (await state()).active;
+  await call('new');
+  const keyboardTab = (await state()).active;
+  await call('activate', remoteTabId);
+  remote.focus();
+  await press(remote, 'Tab', ['control']);
+  await until(
+    async () => (await state()).active === keyboardTab,
+    'Ctrl+Tab desde contenido remoto',
+  );
+  await press(win.webContents, 'Tab', ['control', 'shift']);
+  await until(
+    async () => (await state()).active === remoteTabId,
+    'volver desde dirección enfocada',
+  );
+  assert.equal(await js(`document.getElementById('address').value`), remote.getURL());
+  await call('close', keyboardTab);
+  console.log(
+    'PASS native tab shortcuts: numeric, wraparound, PageUp, remote focus and visible address sync',
   );
   await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
   await remote.executeJavaScript(`fetch('/cache-resource').then(r=>r.text())`);
@@ -650,7 +724,7 @@ window.fixtureDone=false;window.attempts={};
   externalChange.music.volume = 0.25;
   await call('settings', externalChange);
   await js(
-    `(()=>{const label=[...document.querySelectorAll('#settings-body label')].find(el=>el.querySelector('span')?.textContent==='Tema');const select=label.querySelector('select');select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}))})()`,
+    `(()=>{const label=[...document.querySelectorAll('#settings-body label')].find(el=>el.querySelector('span')?.textContent==='Modo de luz');const select=label.querySelector('select');select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}))})()`,
   );
   await until(async () => (await state()).settings.theme === 'dark', 'edición de ajustes UI');
   assert.deepEqual((await state()).settings.music.paths, [file]);

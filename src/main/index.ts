@@ -1,3 +1,4 @@
+import { tabShortcutTarget } from '../shared/tab-shortcuts';
 import { showGoogleAuthHelp } from './auth-help';
 import { isIdentityPage } from '../shared/auth';
 import { AuthWindows } from './auth-windows';
@@ -343,6 +344,21 @@ async function navigate(value: string) {
 }
 
 function shortcut(input: Electron.Input): boolean {
+  const target = tabShortcutTarget(
+    input,
+    tabs.findIndex((t) => t.state.id === active),
+    tabs.length,
+    process.platform,
+  );
+  if (target !== undefined) {
+    activate(tabs[target].state.id);
+    if (current()?.view) current()!.view!.webContents.focus();
+    else {
+      win.webContents.focus();
+      win.webContents.send('nido:focus-address');
+    }
+    return true;
+  }
   if (input.type !== 'keyDown' || !(input.control || input.meta)) return false;
   switch (input.key.toLowerCase()) {
     case 'a':
@@ -369,11 +385,6 @@ function shortcut(input: Electron.Input): boolean {
     case 'r':
       current()?.view?.webContents.reload();
       return true;
-    case 'tab': {
-      const i = tabs.findIndex((t) => t.state.id === active);
-      activate(tabs[(i + (input.shift ? tabs.length - 1 : 1)) % tabs.length].state.id);
-      return true;
-    }
   }
   return false;
 }
@@ -658,6 +669,7 @@ app.whenReady().then(async () => {
         return files;
       }
       case 'choose-wallpaper': {
+        if (settings.appearancePreset !== 'custom') return [];
         const files = await chooseFiles(win, 'wallpaper', locale());
         if (files[0]) {
           settings.wallpaper.image = files[0];

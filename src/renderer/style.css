@@ -1,9 +1,5 @@
 :root {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-ui, system-ui, sans-serif);
   color: var(--text);
   background: var(--bg);
   --accent: #9cae87;
@@ -215,7 +211,7 @@ header {
   margin: 0 0 24px;
 }
 h1 {
-  font-family: Georgia, serif;
+  font-family: var(--font-heading, Georgia, serif);
   font-size: clamp(32px, 4.6vw, 59px);
   font-weight: 400;
   letter-spacing: -1.8px;
@@ -258,7 +254,7 @@ h1 em {
   margin-top: 28px;
 }
 .shortcuts button {
-  font-family: Georgia, serif;
+  font-family: var(--font-heading, Georgia, serif);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -299,7 +295,7 @@ h1 em {
   align-items: start;
 }
 .settings-heading h2 {
-  font: 36px Georgia;
+  font: 36px var(--font-heading, Georgia, serif);
   margin: 0 0 22px;
 }
 .settings-heading .eyebrow {
@@ -469,7 +465,7 @@ html[data-theme='light'] #wallpaper {
 .appearance-preview {
   border-radius: 12px;
   padding: 30px;
-  font: italic 24px Georgia;
+  font: italic 24px var(--font-heading, Georgia, serif);
   margin-bottom: 16px;
   border: 1px solid var(--line);
 }
@@ -590,4 +586,29 @@ html[lang='en'] .statusbar {
   color: var(--accent);
   border: 1px solid var(--line);
   white-space: nowrap;
+}
+
+.appearance-controls {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.appearance-controls:disabled {
+  opacity: 0.5;
+}
+.appearance-controls:disabled input,
+.appearance-controls:disabled select,
+.appearance-controls:disabled button {
+  cursor: not-allowed;
+}
+.theme-presets {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+#newtab h1 em,
+#newtab .eyebrow,
+#newtab .shortcuts button,
+#newtab #search-form button {
+  color: var(--hero-accent, var(--accent));
 }

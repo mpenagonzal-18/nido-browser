@@ -210,3 +210,23 @@ carrera de enumeración concurrente con borrado. No se desactivan guardas ni san
 
 La fixture también comprueba la ayuda una sola vez en un popup rechazado, incluso
 tras recargar, y que las URLs de identidad no se añaden al historial opcional.
+
+## 1.1.0 — temas completos, fuentes y pestañas por teclado
+
+88 pruebas unitarias: veinte presets sin red, fuentes locales, variantes claro/oscuro,
+inmutabilidad efectiva del preset frente a valores manuales y restauración/migración
+de ajustes. El parser de atajos cubre ciclos, posiciones, última pestaña, plataformas,
+layout físico de números y combinaciones que se deben dejar al sistema.
+
+La integración Electron envía keyDown/keyUp reales a la UI y a una página remota:
+Ctrl+Tab, Shift, Ctrl+2, Ctrl+9 y Ctrl+RePág. Comprueba la pestaña activa y dirección
+visible tras volver desde una barra enfocada. En ajustes comprueba veinte tarjetas,
+cambio de acento y tipografía, fieldset deshabilitado y restauración de personalizable.
+El segundo proceso comprueba persistencia de modo personalizable/fuente, además de
+las pruebas previas de sesiones, OAuth, cookies, descargas y cierre de última pestaña.
+Las combinaciones específicas de macOS tienen cobertura unitaria; la prueba nativa
+se ejecuta en Linux. El aspecto de fuentes concretas depende del sistema operativo.
+
+Se revisó visualmente la interfaz de producción en Electron Linux: Aurora aplica
+acento y fuente legibles, la rejilla muestra 20 temas y los controles propios quedan
+deshabilitados. La captura incluida en README usa un perfil temporal sin datos personales.

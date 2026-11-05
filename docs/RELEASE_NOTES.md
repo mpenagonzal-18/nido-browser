@@ -1,20 +1,15 @@
-Nido 1.0.3: compatibilidad de ventanas OAuth y explicación del rechazo de Google.
+Nido 1.1.0: veinte temas completos y navegación por teclado.
 
-- Las ventanas de autenticación conservan sesión, opener y postMessage.
-- Sandbox, aislamiento, Node desactivado y seguridad web forzados; origen en el
-  título, límite de ventanas y protección frente a opciones inseguras de la página.
-- Se evita suspender el opener mientras hay un acceso en una ventana emergente.
-- El filtro de anuncios omite el origen exacto de cuentas Google para no interrumpir
-  sus verificaciones. Las cookies de terceros y la sidebar mantienen sus restricciones.
-- Ayuda para la página de rechazo de Google, con alternativa manual en el navegador
-  del sistema. No se transfieren sesiones, cookies, contraseñas ni tokens a Nido.
+- 20 temas con acento, paleta, gradiente y tipografía coordinados.
+- Colores, fondo y fuentes quedan bloqueados con un preset. Elige «Paleta
+  personalizable» para editarlos; tus valores propios se conservan al cambiar.
+- Cinco estilos de fuentes locales para la interfaz, sin descargas y sin modificar
+  las fuentes de las páginas. Hay variantes claras/oscuras de los acentos.
+- Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+RePág/AvPág y Ctrl+1–9. En macOS, Cmd+1–9 y
+  Cmd+Option+←/→; Cmd+Tab sigue siendo el selector de aplicaciones del sistema.
+- Los atajos funcionan desde contenido web y la dirección visible se sincroniza
+  al cambiar de pestaña, incluso si estaba enfocada.
 
-**Límite importante:** Google puede seguir rechazando Electron como navegador
-integrado. Esta versión NO promete que «Iniciar sesión con Google» funcione dentro
-de Nido. No es un problema que se resuelva desactivando TLS o el sandbox, y no se
-falsea una certificación. Si sigue rechazándolo, hay que usar esa web desde un
-navegador admitido e iniciar el acceso allí.
-
-Pruebas con un flujo OAuth local y rechazo Google simulado; no se usaron cuentas
-Google reales. No se modifica el filtro de vídeo de YouTube de 1.0.2. Instaladores
-sin firma ni notarización y sin actualizador automático.
+Migración conservadora de fondos y ajustes anteriores. No cambia el acceso con
+Google, las sesiones guardadas, el sandbox ni las políticas de privacidad. Sin
+nuevas dependencias ni peticiones de red. Instaladores sin firmar/notarizar.

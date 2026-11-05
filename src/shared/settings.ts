@@ -1,3 +1,4 @@
+import { THEME_IDS } from './themes';
 import { YOUTUBE_DOMAINS } from './youtube';
 import { z } from 'zod';
 import { DEFAULT_PROVIDERS } from './config';
@@ -12,35 +13,10 @@ const webUrl = z
     }
   });
 export const SettingsSchema = z.object({
-  colorTheme: z
-    .enum([
-      'forest',
-      'ocean',
-      'sunset',
-      'aurora',
-      'lavender',
-      'rose',
-      'ember',
-      'midnight',
-      'sand',
-      'arctic',
-    ])
-    .default('forest'),
-  gradientPreset: z
-    .enum([
-      'custom',
-      'forest',
-      'ocean',
-      'sunset',
-      'aurora',
-      'lavender',
-      'rose',
-      'ember',
-      'midnight',
-      'sand',
-      'arctic',
-    ])
-    .default('custom'),
+  appearancePreset: z.enum(['custom', ...THEME_IDS]).default('forest'),
+  customFont: z.enum(['classic', 'modern', 'rounded', 'editorial', 'mono']).default('classic'),
+  colorTheme: z.enum(THEME_IDS).default('forest'),
+  gradientPreset: z.enum(['custom', ...THEME_IDS]).default('custom'),
   language: z.enum(['es', 'en', 'system']).default('es'),
   youtubeAutoPause: z.boolean().default(true),
   accent: z
@@ -106,7 +82,16 @@ export function defaults(): Settings {
 
 export function parseSettings(value: unknown): Settings {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const raw = value as Record<string, unknown>;
+    const raw = { ...(value as Record<string, unknown>) };
+    if (raw.appearancePreset === undefined) {
+      const wallpaper = raw.wallpaper as Record<string, unknown> | undefined;
+      raw.appearancePreset =
+        wallpaper?.kind === 'gradient' &&
+        raw.gradientPreset === raw.colorTheme &&
+        THEME_IDS.includes(raw.colorTheme as (typeof THEME_IDS)[number])
+          ? raw.colorTheme
+          : 'custom';
+    }
     const exclusions = raw.videoExclusions;
     if (
       raw.youtubeAutoPause === undefined &&
@@ -115,6 +100,7 @@ export function parseSettings(value: unknown): Settings {
       YOUTUBE_DOMAINS.every((domain) => exclusions.includes(domain))
     )
       return SettingsSchema.parse({ ...raw, videoExclusions: [] });
+    return SettingsSchema.parse(raw);
   }
   return SettingsSchema.parse(value);
 }
